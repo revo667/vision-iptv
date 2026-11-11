@@ -21,14 +21,20 @@
       <p class="muted">IPTV (Xtream Codes) hesabının bilgilerini gir.</p>
 
       <label class="field">
+        <input name="profile" type="text" placeholder=" " spellcheck="false" maxlength="24" />
+        <span>Profil adı (ör. Salon TV)</span>
+      </label>
+
+      <label class="field">
         <input name="server" type="text" placeholder=" " spellcheck="false" required />
         <span>Sunucu adresi (DNS URL)</span>
       </label>
       <div class="hint">Örnek: http://sunucu.com:8080 — M3U linkini de yapıştırabilirsin.</div>
 
       <label class="field">
-        <input name="username" type="text" placeholder=" " spellcheck="false" required />
+        <input name="username" type="text" class="masked" placeholder=" " spellcheck="false" autocomplete="off" required />
         <span>Kullanıcı adı</span>
+        <button type="button" class="field-eye" data-act="toggle-user" aria-label="Kullanıcı adını göster"></button>
       </label>
 
       <label class="field">
@@ -67,7 +73,11 @@
           <button class="icon-btn search-clear" data-act="clear-search" aria-label="Temizle"></button>
         </div>
         <div class="account" id="account">
-          <button class="avatar" data-act="toggle-account" id="avatar">?</button>
+          <button class="profile-chip" data-act="toggle-account" title="Profil">
+            <span class="avatar" id="avatar">?</span>
+            <span class="profile-name" id="profile-name"></span>
+            <span class="profile-chev" id="profile-chev"></span>
+          </button>
           <div class="account-menu" id="account-menu" hidden></div>
         </div>
       </div>

@@ -42,6 +42,7 @@ const App = {
 
   fillLogin(acc) {
     const f = $('#login-form');
+    if ('profile' in acc) f.profile.value = acc.profile || '';
     f.server.value = acc.server || '';
     f.username.value = acc.username || '';
     f.password.value = acc.password || '';
@@ -49,6 +50,12 @@ const App = {
 
   bindLogin() {
     const f = $('#login-form');
+    const userEye = $('[data-act="toggle-user"]', f);
+    userEye.innerHTML = icon('eye');
+    userEye.onclick = () => {
+      const show = f.username.classList.toggle('masked') === false;
+      userEye.innerHTML = icon(show ? 'eyeOff' : 'eye');
+    };
     const eye = $('[data-act="toggle-pass"]', f);
     eye.innerHTML = icon('eye');
     eye.onclick = () => {
@@ -65,7 +72,7 @@ const App = {
     });
     f.addEventListener('submit', (e) => {
       e.preventDefault();
-      this.login({ server: normalizeServer(f.server.value), username: f.username.value.trim(), password: f.password.value.trim() });
+      this.login({ profile: f.profile.value.trim(), server: normalizeServer(f.server.value), username: f.username.value.trim(), password: f.password.value.trim() });
     });
   },
 
@@ -77,7 +84,8 @@ const App = {
     const api = new Xtream(acc);
     try {
       const info = await api.authenticate();
-      await AccountStore.save({ server: api.server, username: api.username, password: api.password });
+      this.profile = (acc.profile || '').trim() || 'Profilim';
+      await AccountStore.save({ profile: this.profile, server: api.server, username: api.username, password: api.password });
       this.api = api;
       Library.setScope(api.id);
       Catalog.reset();
@@ -95,7 +103,7 @@ const App = {
     $('#login').hidden = true;
     $('#shell').hidden = false;
     const u = info.user_info || {};
-    $('#avatar').textContent = (u.username || '?').slice(0, 1).toUpperCase();
+    this.updateAvatar();
     this.renderAccountMenu();
     const exp = +u.exp_date;
     if (exp) {
@@ -118,6 +126,29 @@ const App = {
     this.showLogin();
   },
 
+  /* ---------- Profil ---------- */
+  profileInitial() {
+    return (this.profile || 'P').trim().slice(0, 1).toLocaleUpperCase('tr');
+  },
+  updateAvatar() {
+    const a = $('#avatar');
+    a.textContent = this.profileInitial();
+    $('#profile-name').textContent = this.profile || '';
+    $('#profile-chev').innerHTML = icon('chevDown');
+  },
+  async saveProfileName(name) {
+    const n = String(name || '').trim().slice(0, 24);
+    this.renaming = false;
+    if (n && n !== this.profile) {
+      this.profile = n;
+      const acc = await AccountStore.load();
+      if (acc) await AccountStore.save({ ...acc, profile: n });
+      toast('Profil adı güncellendi');
+    }
+    this.updateAvatar();
+    this.renderAccountMenu();
+  },
+
   /* ---------- Hesap menüsü ---------- */
   renderAccountMenu() {
     const info = this.api?.info || {};
@@ -127,8 +158,11 @@ const App = {
     $('#account-menu').innerHTML = `
       <div class="acc-head">
         <div class="acc-user">
-          <div class="avatar big">${esc((u.username || '?').slice(0, 1).toUpperCase())}</div>
-          <div><div class="acc-name">${esc(u.username || '')}</div>
+          <div class="avatar big">${esc(this.profileInitial())}</div>
+          <div class="acc-id">
+            ${this.renaming
+              ? `<input class="acc-rename" id="acc-rename" maxlength="24" value="${esc(this.profile)}" spellcheck="false">`
+              : `<div class="acc-name">${esc(this.profile)}<button class="acc-edit" data-act="rename-profile" title="Profil adını değiştir">${icon('pencil')}</button></div>`}
           <div class="acc-status ${active ? '' : 'bad'}">${active ? 'Aktif abonelik' : esc(u.status || 'Bilinmiyor')}</div></div>
         </div>
         <div class="acc-rows">
@@ -158,9 +192,10 @@ const App = {
       if (act === 'toggle-account') {
         this.renderAccountMenu();
         menu.hidden = !menu.hidden;
+        $('.profile-chip').classList.toggle('open', !menu.hidden);
         return;
       }
-      if (!e.target.closest('#account')) menu.hidden = true;
+      if (!e.target.closest('#account')) { menu.hidden = true; $('.profile-chip')?.classList.remove('open'); }
       if (act === 'logout') this.logout();
       if (act === 'refresh') {
         this.api?.clearCache();
@@ -174,6 +209,19 @@ const App = {
         Settings.hideAdult = !Settings.hideAdult;
         this.renderAccountMenu();
         this.go(this.route?.name || 'home', this.route?.params);
+      }
+      if (act === 'rename-profile') {
+        this.renaming = true;
+        this.renderAccountMenu();
+        const inp = $('#acc-rename');
+        inp.focus();
+        inp.select();
+        inp.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') this.saveProfileName(inp.value);
+          if (ev.key === 'Escape') { ev.stopPropagation(); this.renaming = false; this.renderAccountMenu(); }
+        });
+        inp.addEventListener('blur', () => this.renaming && this.saveProfileName(inp.value));
+        return;
       }
       if (act === 'toggle-discord') {
         Presence.setEnabled(!Settings.discord);
