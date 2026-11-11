@@ -26,7 +26,8 @@ BASE = f"http://localhost:{PORT}"
 
 random.seed(7)
 
-MOVIE_CATS = [("1", "Aksiyon"), ("2", "Komedi"), ("3", "Dram"), ("4", "Bilim Kurgu"), ("5", "Yetişkin +18")]
+MOVIE_CATS = [("1", "Aksiyon"), ("2", "Komedi"), ("3", "Dram"), ("4", "Bilim Kurgu"), ("5", "Yetişkin +18"),
+              ("6", "V/S TR ∞ CUMARTESİ"), ("7", "Yeni Eklenenler TR")]
 SERIES_CATS = [("11", "Yerli Diziler"), ("12", "Yabancı Diziler")]
 LIVE_CATS = [("21", "Ulusal"), ("22", "Spor"), ("23", "Haber"), ("24", "Belgesel")]
 
@@ -46,7 +47,9 @@ for cid, _ in MOVIE_CATS:
         sid += 1
         ext = "mkv" if k % 11 == 5 else "mp4"
         MOVIES.append({
-            "num": len(MOVIES) + 1, "name": f"TR: {title(sid % 97)} ({2000 + sid % 25})", "stream_type": "movie",
+            "num": len(MOVIES) + 1,
+            "name": (f"{title(k)} {k + 1}. Bölüm" if cid == "6" else f"TR: {title(k)} - S01E{k + 1:02d}" if cid == "7"
+                     else f"TR: {title(sid % 97)} ({2000 + sid % 25})"), "stream_type": "movie",
             "stream_id": sid, "stream_icon": f"{BASE}/img/poster/{sid}.svg", "rating": f"{5 + (sid % 45) / 10:.1f}",
             "added": str(1700000000 + sid * 3600), "category_id": cid, "container_extension": ext,
         })

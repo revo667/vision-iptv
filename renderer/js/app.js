@@ -174,6 +174,7 @@ const App = {
       </div>
       <button class="menu-item" data-act="toggle-adult">${icon('shield')}Yetişkin içerikleri gizle<span class="switch ${Settings.hideAdult ? 'on' : ''}"></span></button>
       <button class="menu-item" data-act="toggle-discord">${icon('discord')}Discord'da ne izlediğimi göster<span class="switch ${Settings.discord ? 'on' : ''}"></span></button>
+      ${Catalog.hasOverrides() ? `<button class="menu-item" data-act="reset-cats">${icon('restart')}Gizlenen / taşınan kategorileri sıfırla</button>` : ''}
       <button class="menu-item" data-act="refresh">${icon('refresh')}Kataloğu yenile</button>
       <button class="menu-item" data-act="logout">${icon('logout')}Çıkış yap</button>`;
   },
@@ -221,6 +222,13 @@ const App = {
           if (ev.key === 'Escape') { ev.stopPropagation(); this.renaming = false; this.renderAccountMenu(); }
         });
         inp.addEventListener('blur', () => this.renaming && this.saveProfileName(inp.value));
+        return;
+      }
+      if (act === 'reset-cats') {
+        Catalog.resetOverrides();
+        menu.hidden = true;
+        toast('Kategori ayarları sıfırlandı');
+        this.go(this.route?.name || 'home', this.route?.params);
         return;
       }
       if (act === 'toggle-discord') {
@@ -285,7 +293,7 @@ const App = {
       input.value = '';
       $('#search').classList.remove('open', 'has-text');
     }
-    $$('.nav-links a').forEach((a) => a.classList.toggle('active', a.dataset.route === name || (name === 'category' && a.dataset.route === (params.type === 'movie' ? 'movies' : params.type === 'series' ? 'series' : 'live'))));
+    $$('.nav-links a').forEach((a) => a.classList.toggle('active', a.dataset.route === name || (name === 'category' && a.dataset.route === ((params.from || params.type) === 'movie' ? 'movies' : (params.from || params.type) === 'series' ? 'series' : 'live'))));
 
     // Görünümü yenile (eski asenkron işler kopuk düğüme yazsın)
     const old = $('#view');

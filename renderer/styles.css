@@ -757,3 +757,16 @@ video::cue { background: rgba(10, 6, 20, 0.62); color: #fff; font-size: 1.05em; 
 .profile-chev { display: grid; place-items: center; color: var(--text-2); transition: transform 0.25s var(--ease); }
 .profile-chev svg.i { width: 16px; height: 16px; }
 .profile-chip.open .profile-chev { transform: rotate(180deg); }
+
+/* ---------- Satır menüsü (kategori taşı / gizle) ---------- */
+.row-menu { position: relative; margin-left: 4px; }
+.row-menu-btn { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; color: var(--text-3); opacity: 0; transition: all 0.2s; border: 1px solid transparent; }
+.row:hover .row-menu-btn, .row.menu-open .row-menu-btn { opacity: 1; }
+.row-menu-btn:hover, .row.menu-open .row-menu-btn { color: #fff; background: var(--glass-bg); border-color: var(--glass-border); }
+.row-menu-btn svg.i { width: 18px; height: 18px; }
+.row-menu-list {
+  position: absolute; z-index: 20; top: 38px; left: 0; min-width: 250px; padding: 8px; border-radius: 18px;
+  background: var(--glass-solid); border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow), 0 30px 70px rgba(0,0,0,0.85); backdrop-filter: blur(24px);
+  animation: pop 0.18s var(--ease) both;
+}
+.row.menu-open { z-index: 10; }

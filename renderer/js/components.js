@@ -5,33 +5,96 @@ function reg(item) { Items.set(`${item.type}:${item.id}`, item); return item; }
 function getItem(type, id) { return Items.get(`${type}:${id}`); }
 
 /* ---------- Katalog yardımcıları ---------- */
+
+// Film (VOD) kategorisi adından dizi olduğunu tahmin et: "Yerli Diziler", "V/S TR ∞ CUMARTESİ", "Sezon 2"…
+const SERIES_CAT_RE = /(\bdizi|\bserie|\bsezon|\bseason|\bbolum|\bepisod|\bpazartesi\b|\bsali\b|\bcarsamba\b|\bpersembe\b|\bcuma\b|\bcumartesi\b|\bpazar\b|\bv\s*\/\s*s\b|\btv\s*show|\bhaftalik)/;
+// İçerik adından bölüm olduğunu tahmin et: "S01E05", "5. Bölüm", "Bölüm 12", "Episode 3"
+const EPISODE_RE = /\bS\d{1,2}\s*[ ._-]?\s*E\d{1,3}\b|\b\d{1,4}\s*\.?\s*b[öo]l[üu]m\b|\bb[öo]l[üu]m\s*\d+|\bepisode\s*\d+|\bsezon\s*\d+|\b\d{1,2}\s*\.\s*sezon\b/i;
+
 const Catalog = {
   cats: {},
+
+  // Kullanıcı ayarları: { "movie:12": "series" | "movie" | "hidden", "series:5": "hidden" }
+  overrides() { return Store.get(Library.k('catKinds'), {}); },
+  setOverride(type, id, kind) {
+    const o = this.overrides();
+    if (kind) o[`${type}:${id}`] = kind; else delete o[`${type}:${id}`];
+    Store.set(Library.k('catKinds'), o);
+  },
+  // İçeriğe bakarak otomatik tespit edilen dizi kategorileri (kalıcı)
+  autoSeries() { return Store.get(Library.k('catAuto'), {}); },
+  markAutoSeries(id, on) {
+    const a = this.autoSeries();
+    if (!!a[id] === on) return;
+    if (on) a[id] = 1; else delete a[id];
+    Store.set(Library.k('catAuto'), a);
+  },
+  resetOverrides() {
+    Store.set(Library.k('catKinds'), {});
+    Store.set(Library.k('catAuto'), {});
+  },
+  hasOverrides() { return Object.keys(this.overrides()).length > 0; },
+
   async categories(type) {
     if (this.cats[type]) return this.cats[type];
     const api = App.api;
     const fn = { movie: 'vodCategories', series: 'seriesCategories', live: 'liveCategories' }[type];
     const list = await api[fn]().catch(() => []);
-    this.cats[type] = list.map((c) => ({ id: String(c.category_id), name: String(c.category_name || '').trim(), adult: ADULT_RE.test(c.category_name || '') }));
+    this.cats[type] = list.map((c) => {
+      const name = String(c.category_name || '').trim();
+      return { id: String(c.category_id), name, type, adult: ADULT_RE.test(name), seriesLike: type === 'movie' && SERIES_CAT_RE.test(normText(name)) };
+    });
     return this.cats[type];
   },
+
+  // Bir kategorinin hangi bölümde görüneceği: 'movie' | 'series' | 'live' | 'hidden'
+  kindOf(type, catId) {
+    const o = this.overrides()[`${type}:${catId}`];
+    if (o) return o;
+    if (type !== 'movie') return type;
+    if (this.autoSeries()[catId]) return 'series';
+    const cat = (this.cats.movie || []).find((c) => c.id === String(catId));
+    return cat?.seriesLike ? 'series' : 'movie';
+  },
+
   async visibleCategories(type) {
     const cats = await this.categories(type);
-    return Settings.hideAdult ? cats.filter((c) => !c.adult) : cats;
+    return cats.filter((c) => (!Settings.hideAdult || !c.adult) && this.kindOf(type, c.id) !== 'hidden');
   },
+
+  // Filmler / Diziler sayfasında gösterilecek kategoriler
+  async pageCategories(page) {
+    const movieCats = await this.visibleCategories('movie');
+    if (page === 'movie') return movieCats.filter((c) => this.kindOf('movie', c.id) === 'movie');
+    const seriesCats = await this.visibleCategories('series');
+    return [...seriesCats, ...movieCats.filter((c) => this.kindOf('movie', c.id) === 'series')];
+  },
+
   async items(type, catId) {
     const api = App.api;
     const list = type === 'movie' ? await api.vodStreams(catId) : type === 'series' ? await api.seriesList(catId) : await api.liveStreams(catId);
+    if (type === 'movie' && catId !== undefined) {
+      // İçeriğin yarısından fazlası bölüm gibi görünüyorsa bu kategori aslında dizi
+      if (list.length >= 3) {
+        const eps = list.filter((x) => EPISODE_RE.test(x.raw || x.name)).length;
+        this.markAutoSeries(String(catId), eps / list.length >= 0.5);
+      }
+      const asSeries = this.kindOf('movie', catId) === 'series';
+      list.forEach((x) => { x.asSeries = asSeries; });
+    }
     list.forEach(reg);
     return list;
   },
+
   async all(type) {
     const list = await this.items(type);
-    if (!Settings.hideAdult) return list;
     const cats = await this.categories(type);
-    const adult = new Set(cats.filter((c) => c.adult).map((c) => c.id));
-    return list.filter((x) => !adult.has(String(x.cat)));
+    const blocked = new Set(cats.filter((c) => (Settings.hideAdult && c.adult) || this.kindOf(type, c.id) === 'hidden').map((c) => c.id));
+    const out = list.filter((x) => !blocked.has(String(x.cat)));
+    if (type === 'movie') out.forEach((x) => { x.asSeries = this.kindOf('movie', x.cat) === 'series'; });
+    return out;
   },
+
   reset() { this.cats = {}; },
 };
 
@@ -87,7 +150,7 @@ const Card = {
     const meta = [];
     if (item.rating) meta.push(`<span class="rating">${icon('star')}${(+item.rating).toFixed(1)}</span>`);
     if (item.year) meta.push(`<span>${esc(item.year)}</span>`);
-    meta.push(`<span>${item.type === 'series' ? 'Dizi' : 'Film'}</span>`);
+    meta.push(`<span>${item.type === 'series' || item.asSeries ? 'Dizi' : 'Film'}</span>`);
     return `
       <div class="card" tabindex="0" data-card="${item.type}" data-id="${esc(item.id)}">
         ${imgTag(item.icon)}
@@ -187,6 +250,7 @@ function createRow(container, opts) {
         <h2 class="row-title">${esc(opts.title)}</h2>
         ${opts.tag ? `<span class="row-tag">${esc(opts.tag)}</span>` : ''}
         ${opts.more ? `<a class="row-more">Tümünü gör ${icon('chevRight')}</a>` : ''}
+        ${opts.actions?.length ? rowMenuHtml(opts.actions) : ''}
       </div>
       <div class="row-track-wrap">
         <button class="row-arrow left disabled" aria-label="Sola kaydır">${icon('chevLeft')}</button>
@@ -206,6 +270,7 @@ function createRow(container, opts) {
   right.onclick = () => track.scrollBy({ left: track.clientWidth * 0.85 });
   track.addEventListener('scroll', debounce(updateArrows, 60));
   if (opts.more) $('.row-more', row).onclick = opts.more;
+  if (opts.actions?.length) bindRowMenu(row, opts.actions);
 
   row._load = () => loadLimit(async () => {
     try {
@@ -478,3 +543,38 @@ const Detail = {
     this.similarHtml(item).then((html) => { if (this.item === item) $('#md-similar').innerHTML = html; });
   },
 };
+
+/* ---------- Satır menüsü (⋯) ---------- */
+function rowMenuHtml(actions) {
+  return `<div class="row-menu"><button class="row-menu-btn" title="Kategori seçenekleri">${icon('more')}</button>
+    <div class="row-menu-list" hidden>${actions.map((a, i) => `<button class="menu-item" data-row-act="${i}">${icon(a.icon)}${esc(a.label)}</button>`).join('')}</div></div>`;
+}
+
+function closeRowMenus() {
+  $$('.row-menu-list').forEach((l) => {
+    if (!l.hidden) { l.hidden = true; l.closest('.row')?.classList.remove('menu-open'); }
+  });
+}
+
+function bindRowMenu(row, actions) {
+  const menu = $('.row-menu', row);
+  const list = $('.row-menu-list', menu);
+  $('.row-menu-btn', menu).onclick = (e) => {
+    e.stopPropagation();
+    const willOpen = list.hidden;
+    closeRowMenus();
+    list.hidden = !willOpen;
+    row.classList.toggle('menu-open', willOpen);
+  };
+  list.onclick = (e) => {
+    const b = e.target.closest('[data-row-act]');
+    if (!b) return;
+    closeRowMenus();
+    actions[+b.dataset.rowAct].run(row);
+  };
+}
+
+// Satır menüsü dışına tıklanınca kapat
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.row-menu')) closeRowMenus();
+});

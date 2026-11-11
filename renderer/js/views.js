@@ -57,13 +57,13 @@ const Views = {
           <label class="select">${icon('chevDown')}<select id="cat-select"><option value="">Tüm kategoriler</option></select></label>
         </div>
       </div>`;
-    const cats = await Catalog.visibleCategories(type);
+    const cats = await Catalog.pageCategories(type);
     if (!view.isConnected) return;
     const sel = $('#cat-select', view);
-    sel.insertAdjacentHTML('beforeend', cats.map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join(''));
+    sel.insertAdjacentHTML('beforeend', cats.map((c) => `<option value="${esc(c.type)}:${esc(c.id)}">${esc(c.name)}</option>`).join(''));
     sel.onchange = () => {
-      const c = cats.find((x) => x.id === sel.value);
-      if (c) App.go('category', { type, id: c.id, name: c.name });
+      const c = cats.find((x) => `${x.type}:${x.id}` === sel.value);
+      if (c) App.go('category', { type: c.type, id: c.id, name: c.name, from: type });
     };
     const rows = $('#rows', view);
     if (!cats.length) {
@@ -71,21 +71,22 @@ const Views = {
       $('#hero', view).remove();
       return;
     }
-    Catalog.items(type, cats[0].id).then((items) => {
+    Catalog.items(cats[0].type, cats[0].id).then((items) => {
       const hero = $('#hero', view);
       if (hero) renderHero(hero, type === 'series' ? [...items.filter((x) => x.backdrop), ...items] : items);
     }).catch(() => $('#hero', view)?.remove());
-    for (const c of cats) createRow(rows, rowForCategory(type, c, { tag: false }));
+    for (const c of cats) createRow(rows, rowForCategory(c.type, c, { tag: false, page: type }));
   },
 
   movies(view) { return Views.catalogPage(view, 'movie'); },
   series(view) { return Views.catalogPage(view, 'series'); },
 
-  async category(view, { type, id, name }) {
+  async category(view, { type, id, name, from }) {
+    const back = from || type;
     view.innerHTML = `
       <div class="page-top">
         <div class="page-head">
-          <a class="back-link" id="back">${icon('chevLeft')}${type === 'movie' ? 'Filmler' : type === 'series' ? 'Diziler' : 'Canlı TV'}</a>
+          <a class="back-link" id="back">${icon('chevLeft')}${back === 'movie' ? 'Filmler' : back === 'series' ? 'Diziler' : 'Canlı TV'}</a>
         </div>
         <div class="page-head">
           <h1 class="page-title">${esc(name)}</h1>
@@ -101,7 +102,7 @@ const Views = {
         </div>
         <div id="grid-wrap"><div class="center-load"><div class="spinner"></div></div></div>
       </div>`;
-    $('#back', view).onclick = () => App.go(type === 'movie' ? 'movies' : type === 'series' ? 'series' : 'live');
+    $('#back', view).onclick = () => App.go(back === 'movie' ? 'movies' : back === 'series' ? 'series' : 'live');
     let items;
     try {
       items = await Catalog.items(type, id);
@@ -165,7 +166,7 @@ const Views = {
       }
       return [...starts, ...contains].slice(0, 120);
     };
-    const r = { movie: match(movies), series: match(series), live: match(live) };
+    const r = { movie: match(movies.filter((x) => !x.asSeries)), series: match([...series, ...movies.filter((x) => x.asSeries)]), live: match(live) };
     const sr = $('#sr', view);
     sr.innerHTML = '';
     if (!r.movie.length && !r.series.length && !r.live.length) {
@@ -185,14 +186,59 @@ const Views = {
   },
 };
 
-function rowForCategory(type, cat, { tag = true } = {}) {
+function rowForCategory(type, cat, { tag = true, page } = {}) {
+  const kind = Catalog.kindOf(type, cat.id);
   return {
     title: cat.name,
-    tag: tag ? TYPE_LABEL[type] : '',
+    tag: tag ? TYPE_LABEL[kind === 'series' ? 'series' : type] : '',
     kind: type === 'live' ? 'channel' : 'poster',
-    load: () => Catalog.items(type, cat.id),
-    more: type === 'live' ? () => App.go('live', { cat: cat.id }) : () => App.go('category', { type, id: cat.id, name: cat.name }),
+    load: async () => {
+      const items = await Catalog.items(type, cat.id);
+      // İçerik incelenince kategori başka bölüme ait çıktıysa bu sayfada gösterme
+      if (page && Catalog.kindOf(type, cat.id) !== page) return [];
+      return items;
+    },
+    more: type === 'live'
+      ? () => App.go('live', { cat: cat.id })
+      : () => App.go('category', { type, id: cat.id, name: cat.name, from: Catalog.kindOf(type, cat.id) === 'series' ? 'series' : type }),
+    actions: categoryActions(type, cat),
   };
+}
+
+// Satırdaki ⋯ menüsü: kategoriyi Filmler/Diziler arasında taşı veya gizle
+function categoryActions(type, cat) {
+  const acts = [];
+  const moveTo = (row, kind) => {
+    Catalog.setOverride('movie', cat.id, kind);
+    Items.forEach((it) => { if (it.type === 'movie' && String(it.cat) === cat.id) it.asSeries = kind === 'series'; });
+    toast(`“${cat.name}” ${kind === 'series' ? 'Diziler' : 'Filmler'} bölümüne taşındı`);
+    const r = App.route?.name;
+    if (r === 'movies' || r === 'series') {
+      row.style.display = 'none';
+      return;
+    }
+    // Ana sayfada etiketi ve menüyü güncelle
+    const tagEl = $('.row-tag', row);
+    if (tagEl) tagEl.textContent = TYPE_LABEL[kind];
+    const fresh = categoryActions(type, cat);
+    const holder = h(rowMenuHtml(fresh));
+    $('.row-menu', row).replaceWith(holder);
+    bindRowMenu(row, fresh);
+  };
+  if (type === 'movie') {
+    if (Catalog.kindOf('movie', cat.id) === 'series') acts.push({ icon: 'film', label: 'Filmler bölümüne taşı', run: (row) => moveTo(row, 'movie') });
+    else acts.push({ icon: 'tv', label: 'Diziler bölümüne taşı', run: (row) => moveTo(row, 'series') });
+  }
+  acts.push({
+    icon: 'eyeOff',
+    label: 'Bu kategoriyi gizle',
+    run: (row) => {
+      Catalog.setOverride(type, cat.id, 'hidden');
+      row.style.display = 'none';
+      toast(`“${cat.name}” gizlendi — profil menüsünden geri getirebilirsin`);
+    },
+  });
+  return acts;
 }
 
 // Büyük listeleri parça parça çiz
