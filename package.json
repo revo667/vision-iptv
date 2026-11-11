@@ -1,0 +1,70 @@
+{
+  "name": "vision-iptv",
+  "productName": "Vision",
+  "version": "1.0.0",
+  "description": "Xtream Codes uyumlu modern IPTV oynatıcı (macOS)",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --mac dmg --arm64"
+  },
+  "build": {
+    "appId": "com.revo667.vision",
+    "productName": "Vision",
+    "files": [
+      "main.js",
+      "preload.js",
+      "discord.js",
+      "renderer/**/*",
+      "node_modules/hls.js/dist/hls.min.js",
+      "node_modules/mpegts.js/dist/mpegts.js",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "mac": {
+      "category": "public.app-category.entertainment",
+      "icon": "build/icon.png",
+      "identity": null,
+      "target": [
+        "dmg"
+      ]
+    },
+    "afterPack": "./build/adhoc-sign.js",
+    "dmg": {
+      "title": "Vision",
+      "contents": [
+        {
+          "x": 150,
+          "y": 190
+        },
+        {
+          "x": 410,
+          "y": 190,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "window": {
+        "width": 560,
+        "height": 380
+      }
+    },
+    "artifactName": "Vision-${version}-${arch}.${ext}"
+  },
+  "dependencies": {
+    "hls.js": "^1.7.4",
+    "mpegts.js": "^1.8.2"
+  },
+  "devDependencies": {
+    "electron": "^45.3.0",
+    "electron-builder": "^26.18.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/revo667/vision-iptv.git"
+  }
+}

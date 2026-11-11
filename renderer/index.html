@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src * data: blob:; media-src * blob: data:; connect-src *; worker-src 'self' blob:; font-src 'self' data:" />
+  <title>Vision</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="drag-strip"></div>
+
+  <!-- GİRİŞ -->
+  <section id="login" class="login" hidden>
+    <div class="login-bg"><span></span><span></span><span></span></div>
+    <div class="login-grain"></div>
+    <div class="login-brand"><div class="logo">VISION</div></div>
+    <form id="login-form" class="login-card" autocomplete="off">
+      <h1>Giriş yap</h1>
+      <p class="muted">IPTV (Xtream Codes) hesabının bilgilerini gir.</p>
+
+      <label class="field">
+        <input name="server" type="text" placeholder=" " spellcheck="false" required />
+        <span>Sunucu adresi (DNS URL)</span>
+      </label>
+      <div class="hint">Örnek: http://sunucu.com:8080 — M3U linkini de yapıştırabilirsin.</div>
+
+      <label class="field">
+        <input name="username" type="text" placeholder=" " spellcheck="false" required />
+        <span>Kullanıcı adı</span>
+      </label>
+
+      <label class="field">
+        <input name="password" type="password" placeholder=" " spellcheck="false" required />
+        <span>Şifre</span>
+        <button type="button" class="field-eye" data-act="toggle-pass" aria-label="Şifreyi göster"></button>
+      </label>
+
+      <div id="login-error" class="login-error" hidden></div>
+
+      <button class="btn btn-primary btn-block" type="submit" id="login-submit">
+        <span class="btn-label">Giriş yap</span>
+        <span class="spinner sm"></span>
+      </button>
+      <p class="login-foot">Bilgilerin yalnızca bu Mac'te, şifrelenmiş olarak saklanır.</p>
+    </form>
+  </section>
+
+  <!-- UYGULAMA -->
+  <div id="shell" class="shell" hidden>
+    <header id="nav" class="nav">
+      <div class="nav-left">
+        <div class="logo logo-sm" data-route="home">VISION</div>
+        <nav class="nav-links">
+          <a data-route="home">Ana Sayfa</a>
+          <a data-route="live">Canlı TV</a>
+          <a data-route="movies">Filmler</a>
+          <a data-route="series">Diziler</a>
+          <a data-route="mylist">Listem</a>
+        </nav>
+      </div>
+      <div class="nav-right">
+        <div class="search" id="search">
+          <button class="icon-btn" data-act="open-search" aria-label="Ara"></button>
+          <input id="search-input" type="text" placeholder="Film, dizi, kanal ara" spellcheck="false" />
+          <button class="icon-btn search-clear" data-act="clear-search" aria-label="Temizle"></button>
+        </div>
+        <div class="account" id="account">
+          <button class="avatar" data-act="toggle-account" id="avatar">?</button>
+          <div class="account-menu" id="account-menu" hidden></div>
+        </div>
+      </div>
+    </header>
+    <main id="view" class="view"></main>
+  </div>
+
+  <!-- DETAY MODALI -->
+  <div id="modal" class="modal" hidden>
+    <div class="modal-backdrop" data-act="close-modal"></div>
+    <div class="modal-dialog" id="modal-dialog"></div>
+  </div>
+
+  <!-- OYNATICI -->
+  <div id="player" class="player" hidden>
+    <video id="player-video" playsinline></video>
+    <div class="p-shade"></div>
+    <div class="p-top">
+      <button class="p-btn p-back" data-p="close" title="Geri (Esc)"></button>
+      <div class="p-titles">
+        <div class="p-title" id="p-title"></div>
+        <div class="p-sub" id="p-sub"></div>
+      </div>
+      <div class="p-live" id="p-live"><i></i>CANLI</div>
+    </div>
+    <div class="p-loading" id="p-loading"><div class="spinner lg"></div></div>
+    <div class="p-osd" id="p-osd"></div>
+    <div class="p-error" id="p-error" hidden></div>
+    <div class="p-bottom">
+      <div class="p-progress" id="p-progress">
+        <div class="p-rail">
+          <div class="p-buf" id="p-buf"></div>
+          <div class="p-played" id="p-played"></div>
+          <div class="p-knob" id="p-knob"></div>
+        </div>
+        <div class="p-hover-time" id="p-hover-time"></div>
+      </div>
+      <div class="p-controls">
+        <div class="p-group">
+          <button class="p-btn" data-p="play" id="p-play" title="Oynat / Duraklat (Boşluk)"></button>
+          <button class="p-btn vod-only" data-p="back10" title="10 sn geri (←)"></button>
+          <button class="p-btn vod-only" data-p="fwd10" title="10 sn ileri (→)"></button>
+          <button class="p-btn live-only" data-p="prev-ch" title="Önceki kanal (↑)"></button>
+          <button class="p-btn live-only" data-p="next-ch" title="Sonraki kanal (↓)"></button>
+          <div class="p-volume">
+            <button class="p-btn" data-p="mute" id="p-mute" title="Sessiz (M)"></button>
+            <input type="range" min="0" max="1" step="0.01" id="p-vol" />
+          </div>
+          <div class="p-time" id="p-time"></div>
+        </div>
+        <div class="p-group">
+          <button class="p-btn p-next-ep" data-p="next-ep" id="p-next-ep" title="Sonraki bölüm"></button>
+          <button class="p-btn live-only" data-p="channels" title="Kanal listesi"></button>
+          <button class="p-btn" data-p="tracks" id="p-tracks" title="Ses ve altyazı"></button>
+          <button class="p-btn vod-only" data-p="speed" title="Oynatma hızı"></button>
+          <button class="p-btn" data-p="external" title="Harici oynatıcıda aç"></button>
+          <button class="p-btn" data-p="pip" title="Resim içinde resim"></button>
+          <button class="p-btn" data-p="fullscreen" id="p-fs" title="Tam ekran (F)"></button>
+        </div>
+      </div>
+    </div>
+    <div class="p-menu" id="p-menu" hidden></div>
+    <aside class="p-drawer" id="p-drawer" hidden></aside>
+    <div class="p-next-card" id="p-next-card" hidden></div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="../node_modules/hls.js/dist/hls.min.js"></script>
+  <script src="../node_modules/mpegts.js/dist/mpegts.js"></script>
+  <script src="js/util.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/library.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/components.js"></script>
+  <script src="js/views.js"></script>
+  <script src="js/live.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
