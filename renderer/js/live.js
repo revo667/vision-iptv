@@ -170,12 +170,16 @@ const Live = {
         <span>${c.fav ? icon('star') + ' ' : ''}${esc(c.name)}</span>${c.fav ? `<small>${c.count}</small>` : ''}</button>`;
     const lists = this.cats.filter((c) => c.fav);
     const rest = this.cats.filter((c) => !c.fav && (!q || c.id === 'all' || normText(c.name).includes(q)));
+    // Yeniden çizimde kumanda odağı kaybolmasın
+    const ae = document.activeElement;
+    const keep = ae && ae.closest?.('#cat-list') ? (ae.dataset.cat ? `[data-cat="${CSS.escape(ae.dataset.cat)}"]` : ae.dataset.act ? `[data-act="${ae.dataset.act}"]` : null) : null;
     $('#cat-list', this.view).innerHTML = `
       <div class="cat-group">Favori listelerim</div>
       ${lists.map(item).join('')}
       <button class="cat-item new-list" data-act="new-list"><span>${icon('plus')} Yeni liste oluştur</span></button>
       <div class="cat-group">Kategoriler</div>
       ${rest.map(item).join('')}`;
+    if (keep) $(`#cat-list ${keep}`, this.view)?.focus({ preventScroll: true });
   },
 
   async newList() {
@@ -185,6 +189,7 @@ const Live = {
     toast(`“${l.name}” oluşturuldu — kanallardaki ★ ile ekleyebilirsin`);
     this.buildCats();
     this.selectCategory(`list:${l.id}`);
+    $(`#cat-list [data-cat="list:${CSS.escape(l.id)}"]`, this.view)?.focus({ preventScroll: true });
   },
 
   async listAction(a) {
@@ -208,6 +213,7 @@ const Live = {
     if (!this.view) return;
     this.buildCats();
     this.selectCategory(this.catId, true);
+    $(`#list-acts [data-la="${a}"]`, this.view)?.focus({ preventScroll: true });
   },
 
   renderListActs() {
@@ -273,13 +279,21 @@ const Live = {
     }
     const scroll = list.scrollTop;
     const favIds = Library.chFavIds();
+    const ae = document.activeElement;
+    const rowsBefore = Array.from(list.querySelectorAll('.ch-row'));
+    const keep = ae && ae.closest?.('#ch-list') && ae.dataset.ch
+      ? { cls: ae.classList.contains('ch-fav') ? 'ch-fav' : 'ch-item', id: ae.dataset.ch, idx: rowsBefore.indexOf(ae.closest('.ch-row')) }
+      : null;
+    // Kanal ve ★ ayrı düğmeler: kumandayla yıldıza da gidilebilsin (sağ ok)
     const row = (c) => `
-      <button class="ch-item ${this.current && c.id === this.current.id ? 'active' : ''}" data-ch="${esc(c.id)}">
-        <span class="ch-num">${esc(c.num ?? '')}</span>
-        <span class="ch-logo">${imgTag(c.icon, '', 'data-hide-broken')}<b>${esc(initials(c.name))}</b></span>
-        <span class="ch-text"><div>${esc(c.name)}</div></span>
-        <span class="ch-fav ${favIds.has(String(c.id)) ? 'on' : ''}" data-fav title="Favori listelerine ekle">${icon('star')}</span>
-      </button>`;
+      <div class="ch-row" data-ch="${esc(c.id)}">
+        <button class="ch-item ${this.current && c.id === this.current.id ? 'active' : ''}" data-ch="${esc(c.id)}">
+          <span class="ch-num">${esc(c.num ?? '')}</span>
+          <span class="ch-logo">${imgTag(c.icon, '', 'data-hide-broken')}<b>${esc(initials(c.name))}</b></span>
+          <span class="ch-text"><div>${esc(c.name)}</div></span>
+        </button>
+        <button class="ch-fav ${favIds.has(String(c.id)) ? 'on' : ''}" data-fav data-ch="${esc(c.id)}" title="Favori listelerine ekle" aria-label="Favori listelerine ekle">${icon('star')}</button>
+      </div>`;
     list.innerHTML = '';
     let i = 0;
     const CHUNK = 200;
@@ -294,6 +308,12 @@ const Live = {
     more();
     io.observe(sentinel);
     if (keepScroll) list.scrollTop = scroll;
+    if (keep) {
+      // Aynı kanal listede kaldıysa ona, çıkarıldıysa aynı sıradaki kanala dön
+      const rows = Array.from(list.querySelectorAll('.ch-row'));
+      const row = rows.find((r) => r.dataset.ch === keep.id) || rows[Math.min(Math.max(keep.idx, 0), rows.length - 1)];
+      (row?.querySelector(`.${keep.cls}`) || row?.querySelector('.ch-item'))?.focus({ preventScroll: true });
+    }
   },
 
   markActive(id, scroll) {
@@ -322,8 +342,11 @@ const Live = {
     ph.innerHTML = `<div class="ls-native">
         <div class="now-logo big">${imgTag(ch.icon, '', 'data-hide-broken')}<b>${esc(initials(ch.name))}</b></div>
         <h3>${esc(ch.name)}</h3>
-        <p class="muted">${window.native?.isTv ? 'İzlemek için kumandada OK tuşuna bas' : 'İzlemek için kanala dokun'}</p>
-        <button class="btn btn-primary btn-sm" data-ls="full">${icon('play')}<span class="btn-label">Tam ekran izle</span></button>
+        <p class="muted">${window.native?.isTv ? 'İzlemek için OK · favorilere eklemek için sağdaki ★' : 'İzlemek için kanala dokun'}</p>
+        <div class="ls-native-acts">
+          <button class="btn btn-primary btn-sm" data-ls="full">${icon('play')}<span class="btn-label">Tam ekran izle</span></button>
+          <button class="btn btn-glass btn-sm ls-fav-btn ${Library.isChFav(ch) ? 'on' : ''}" data-ls="fav">${icon('star')}<span class="btn-label">${Library.isChFav(ch) ? 'Favori listeleri' : 'Favorilere ekle'}</span></button>
+        </div>
       </div>`;
   },
 
@@ -335,6 +358,7 @@ const Live = {
   }, 250),
 
   updateFavBtn() {
+    if (this.native && this.current && !$('#ls-ph', this.view).hidden) this.paintNativeStage(this.current);
     const b = $('#ls-fav', this.view);
     if (!b || !this.current) return;
     const on = Library.isChFav(this.current);
@@ -430,8 +454,11 @@ const Live = {
     this.select(this.channels.find((c) => c.id === ch.id) || ch);
   },
 
+  // Masaüstü klavye kısayolları (odak bir düğme / alandayken devreye girmez; TV'de kumanda gezinmesi yönetir)
   onKey(e) {
-    if (!this.view || e.target.matches('input, select, textarea')) return false;
+    if (!this.view || Spatial.enabled || e.target.matches('input, select, textarea')) return false;
+    // Enter, odaktaki düğmenin kendi işini yapsın (★, yeni liste…); yalnızca kanal satırında tam ekran açar
+    if (e.key === 'Enter' && e.target.matches('button, a, [tabindex]') && !e.target.matches('.ch-item')) return false;
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       if (!this.filtered.length) return true;
       const idx = this.current ? this.filtered.findIndex((c) => c.id === this.current.id) : -1;

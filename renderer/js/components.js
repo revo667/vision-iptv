@@ -153,7 +153,7 @@ const Card = {
     meta.push(`<span>${item.type === 'series' || item.asSeries ? 'Dizi' : 'Film'}</span>`);
     return `
       <div class="card" tabindex="0" data-card="${item.type}" data-id="${esc(item.id)}">
-        ${imgTag(item.icon)}
+        ${imgTag(item.icon, '', '', 'poster')}
         <div class="card-fallback" style="${fallbackStyle(item.name)}">${esc(item.name)}</div>
         ${progress ? `<div class="card-progress"><i style="width:${progress}%"></i></div>` : ''}
         <div class="card-play" data-quick-play>${icon('play')}</div>
@@ -182,7 +182,7 @@ const Card = {
       : entry.dur ? `${fmtDuration(entry.dur - entry.pos)} kaldı` : '';
     return `
       <div class="card" tabindex="0" data-card="continue" data-key="${entry.type}:${esc(entry.id)}">
-        ${imgTag(entry.icon)}
+        ${imgTag(entry.icon, '', '', 'poster')}
         <div class="card-fallback" style="${fallbackStyle(entry.name)}">${esc(entry.name)}</div>
         <div class="card-progress"><i style="width:${pct}%"></i></div>
         <div class="card-play">${icon('play')}</div>
@@ -317,7 +317,7 @@ async function renderHero(el, candidates) {
   if (genre) meta.push(`<span>${esc(genre.split(/[,/]/).slice(0, 3).join(' · '))}</span>`);
   el.innerHTML = `
     <div class="hero-media ${bd ? '' : 'poster-only'}">
-      ${bd ? imgTag(bd, '', 'loading="eager"') : imgTag(pick.icon, 'bg', 'loading="eager"') + imgTag(pick.icon, 'poster', 'loading="eager"')}
+      ${bd ? imgTag(bd, '', 'loading="eager"', 'backdrop') : imgTag(pick.icon, 'bg', 'loading="eager"', 'poster') + imgTag(pick.icon, 'poster', 'loading="eager"', 'poster')}
     </div>
     <div class="hero-content">
       <div class="hero-kicker"><b>V</b>${pick.type === 'series' ? 'Dizi' : 'Film'}</div>
@@ -377,7 +377,7 @@ const Detail = {
     return `
       <button class="md-close" data-act="close-modal">${icon('close')}</button>
       <div class="md-hero ${bd ? '' : 'poster-only'}">
-        ${bd ? imgTag(bd, 'bg', 'loading="eager"') : imgTag(poster, 'bg', 'loading="eager"') + imgTag(poster, 'poster', 'loading="eager"')}
+        ${bd ? imgTag(bd, 'bg', 'loading="eager"', 'backdrop') : imgTag(poster, 'bg', 'loading="eager"', 'poster') + imgTag(poster, 'poster', 'loading="eager"', 'poster')}
         <div class="md-hero-content">
           <h2 class="md-title">${esc(title)}</h2>
           <div class="md-actions">${actionsHtml}</div>
@@ -524,7 +524,7 @@ const Detail = {
           <div class="ep ${i === curIdx && resume ? 'current' : ''}" data-ep="${i}">
             <div class="ep-num">${e.num}</div>
             <div class="ep-thumb">
-              ${imgTag(e.img || bd || poster)}
+              ${imgTag(e.img || bd || poster, '', '', 'still')}
               <div class="ep-play"><span>${icon('play')}</span></div>
               ${pct ? `<div class="card-progress"><i style="width:${pct}%"></i></div>` : ''}
             </div>

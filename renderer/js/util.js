@@ -189,7 +189,21 @@ document.addEventListener('error', (e) => {
   }
 }, true);
 
-function imgTag(src, cls = '', attrs = '') {
+// TMDB görsellerini ekran için yeterli boyutta iste: tam boy afişler (2000×3000) TV'de
+// hem belleği hem çözme süresini tüketir. kind: 'poster' | 'backdrop' | 'still'
+const IMG_SIZES = {
+  poster: () => (document.documentElement.classList.contains('tv') || innerWidth < 760 ? 'w342' : 'w500'),
+  backdrop: () => (document.documentElement.classList.contains('tv') || innerWidth < 1400 ? 'w1280' : 'original'),
+  still: () => 'w300',
+};
+function sizedImg(src, kind) {
+  const size = IMG_SIZES[kind]?.();
+  if (!size) return src;
+  return String(src).replace(/(image\.tmdb\.org\/t\/p\/)(original|w\d+|w\d+_and_h\d+_[a-z0-9]+)\//i, `$1${size}/`);
+}
+
+function imgTag(src, cls = '', attrs = '', kind = '') {
   if (!src || !/^(https?:|data:)/.test(src)) return '';
+  if (kind) src = sizedImg(src, kind);
   return `<img class="${cls}" src="${esc(src)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" ${attrs} alt="">`;
 }

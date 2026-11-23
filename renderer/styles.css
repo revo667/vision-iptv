@@ -528,7 +528,9 @@ svg.i { width: 22px; height: 22px; flex: none; }
 .cat-item:hover { background: rgba(255,255,255,0.05); color: #fff; }
 .cat-item.active { background: var(--neon-bg); box-shadow: var(--neon-shadow); color: #fff; font-weight: 650; }
 .cat-item svg.i { width: 16px; height: 16px; flex: none; }
-.ch-item { width: 100%; display: grid; grid-template-columns: 30px 58px 1fr auto; align-items: center; gap: 12px; padding: 8px 10px; margin-bottom: 3px; border-radius: 16px; text-align: left; border: 1px solid transparent; transition: all 0.18s; }
+.ch-row { display: flex; align-items: center; gap: 4px; margin-bottom: 3px; }
+.ch-row .ch-item { flex: 1; min-width: 0; margin-bottom: 0; }
+.ch-item { width: 100%; display: grid; grid-template-columns: 30px 58px 1fr; align-items: center; gap: 12px; padding: 8px 10px; margin-bottom: 3px; border-radius: 16px; text-align: left; border: 1px solid transparent; transition: all 0.18s; }
 .ch-item:hover { background: rgba(255,255,255,0.05); }
 .ch-item.active { background: rgba(139, 92, 246, 0.16); border-color: rgba(167, 139, 250, 0.55); box-shadow: 0 0 22px rgba(139, 92, 246, 0.25), inset 0 1px 0 rgba(255,255,255,0.1); }
 .ch-num { font-size: 12.5px; color: var(--text-3); text-align: right; font-variant-numeric: tabular-nums; }
@@ -539,9 +541,13 @@ svg.i { width: 22px; height: 22px; flex: none; }
 .ch-logo img.ok + b, .now-logo img.ok + b { display: none; }
 .ch-text { min-width: 0; }
 .ch-text div { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ch-fav { opacity: 0; color: var(--text-3); width: 30px; height: 30px; display: grid; place-items: center; border-radius: 10px; }
+.ch-fav { flex: none; opacity: 0; color: var(--text-3); width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; }
 .ch-fav svg.i { width: 16px; height: 16px; }
-.ch-item:hover .ch-fav, .ch-fav.on { opacity: 1; }
+.ch-row:hover .ch-fav, .ch-row:focus-within .ch-fav, .ch-fav.on, .tv .ch-fav { opacity: 1; }
+.tv .ch-fav:not(.on) { color: var(--text-3); }
+.tv .ch-fav:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 0; background: rgba(139, 92, 246, 0.3); color: #fff; }
+.ls-native-acts { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.ls-fav-btn.on svg.i { color: var(--gold); fill: currentColor; }
 .ch-fav.on { color: var(--gold); }
 .ch-fav.on svg.i { fill: currentColor; }
 .ch-fav:hover { background: rgba(255,255,255,0.08); color: #fff; }
@@ -870,8 +876,28 @@ video::cue { background: rgba(10, 6, 20, 0.62); color: #fff; font-size: 1.05em; 
 
 /* ---------- Android TV: kumandayla gezinme ---------- */
 .tv { --card-w: 178px; }
+/* TV: zayıf işlemci / grafik birimi için hafif görünüm (ölçüm: işlemcinin çoğu sonsuz
+   animasyonlar ve ekran dışı öğelerin stil hesabıyla gidiyordu) */
+.tv {
+  --neon-shadow: 0 0 0 1px rgba(196, 181, 253, 0.55), 0 6px 18px -6px rgba(124, 58, 237, 0.8);
+  --glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 18px 36px -18px rgba(0, 0, 0, 0.8);
+}
 .tv *, .tv *::before, .tv *::after { backdrop-filter: none !important; }
 .tv .hero-media img { animation: none; }
+.tv .logo, .tv .spinner, .tv .empty svg.i, .tv .card.channel img, .tv .ls-placeholder svg.i, .tv .track-head svg.i,
+.tv .fp-head > svg.i, .tv .p-osd svg.i, .tv .p-error-box svg.i { filter: none; }
+.tv .login-bg { filter: none; opacity: 0.5; }
+.tv .login-bg span, .tv .card.skeleton, .tv .hero.skeleton .hero-media, .tv .live-dot::before, .tv .p-live i,
+.tv .view > *, .tv .hero-content, .tv .login-card { animation: none; }
+.tv .login-grain { display: none; }
+.tv .hero-media.poster-only img.bg, .tv .md-hero.poster-only img.bg { filter: none; opacity: 0.3; transform: none; }
+.tv .card { box-shadow: none; transition: transform 0.12s ease-out; }
+.tv .card::after { display: none; }
+.tv .card:hover, .tv .card:focus-visible { transform: scale(1.06); box-shadow: none; transition: transform 0.12s ease-out; }
+.tv .card-info, .tv .card-play, .tv .nav-links a, .tv .pill, .tv .cat-item, .tv .ch-item, .tv .menu-item, .tv .btn, .tv .round-btn,
+.tv .ep, .tv .fp-item, .tv .track-opt, .tv .row-more, .tv .icon-btn, .tv .search, .tv .profile-chip { transition: none; }
+.tv .grid .card { content-visibility: auto; contain-intrinsic-size: auto 270px; }
+.tv .modal-dialog { box-shadow: 0 30px 80px rgba(0, 0, 0, 0.85); }
 .tv .view, .tv .row-track, .tv .live-scroll, .tv .modal { scroll-behavior: auto; }
 .tv [tabindex], .tv button, .tv a, .tv .card { scroll-margin: calc(var(--nav-h) + 30px) 60px 40px; }
 .tv :focus { outline: none; }
@@ -988,7 +1014,7 @@ video::cue { background: rgba(10, 6, 20, 0.62); color: #fff; font-size: 1.05em; 
   #cat-list .cat-item { width: auto; flex: none; margin: 0; padding: 9px 14px; white-space: nowrap; }
   #cat-list .cat-item.new-list { margin: 0; }
   .live-col-head { padding: 14px 12px 10px; }
-  .ch-item { grid-template-columns: 26px 50px 1fr auto; gap: 10px; }
+  .ch-item { grid-template-columns: 26px 50px 1fr; gap: 10px; }
   .ch-logo { width: 50px; height: 38px; }
 
   .toast { bottom: 84px; max-width: calc(100vw - 24px); text-align: center; }
@@ -1018,3 +1044,6 @@ video::cue { background: rgba(10, 6, 20, 0.62); color: #fff; font-size: 1.05em; 
 @media (max-height: 600px) { .login-brand { display: none; } .login { align-items: start; padding-top: 16px; overflow-y: auto; } }
 
 .login-error { white-space: pre-line; }
+
+/* Ekran dışındaki satırlar çizilmesin (yüzlerce satırlık kataloglarda büyük kazanç) */
+.rows .row { content-visibility: auto; contain-intrinsic-size: auto 380px; }

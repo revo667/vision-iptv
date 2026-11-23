@@ -15,7 +15,23 @@ const Dialog = {
     root.hidden = false;
     this.onClose = onClose || null;
     this.prevFocus = document.activeElement;
+    this.prevSel = this.selectorOf(this.prevFocus);
     return box;
+  },
+
+  // Pencere kapanınca odak geri dönsün; öğe bu arada yeniden çizildiyse eşini bul
+  selectorOf(el) {
+    if (!el || el === document.body) return null;
+    const d = el.dataset || {};
+    const q = (v) => CSS.escape(String(v));
+    if (el.id) return `#${q(el.id)}`;
+    if (d.ls) return `[data-ls="${q(d.ls)}"]`;
+    if (d.la) return `[data-la="${q(d.la)}"]`;
+    if (d.cat) return `[data-cat="${q(d.cat)}"]`;
+    if (d.act) return `[data-act="${q(d.act)}"]`;
+    if (d.ch && el.classList[0]) return `.${q(el.classList[0])}[data-ch="${q(d.ch)}"]`;
+    if (d.p) return `[data-p="${q(d.p)}"]`;
+    return null;
   },
 
   close(silent) {
@@ -25,7 +41,8 @@ const Dialog = {
     const cb = this.onClose;
     this.onClose = null;
     if (!silent && cb) cb();
-    if (this.prevFocus?.isConnected) this.prevFocus.focus?.({ preventScroll: true });
+    const back = this.prevFocus?.isConnected ? this.prevFocus : this.prevSel && document.querySelector(this.prevSel);
+    back?.focus?.({ preventScroll: true });
   },
 
   // Metin iste → Promise<string|null>

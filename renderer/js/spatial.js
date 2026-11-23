@@ -121,8 +121,19 @@ const Spatial = {
 
     e.preventDefault();
     e.stopPropagation();
-    const list = this.candidates(scope);
-    let next = this.best(ae, list, dir);
+    // Tuş basılı tutulunca zayıf cihazlarda kuyruk birikmesin
+    const now = performance.now();
+    if (e.repeat && now - (this.lastMove || 0) < 90) return;
+    this.lastMove = now;
+    // Önce yakındaki öğelere bak (aynı satır / aynı liste / komşu satırlar); bulunamazsa tüm sayfa
+    const near = this.near(ae, dir);
+    let next = near ? this.best(ae, near, dir) : null;
+    // Yukarı/aşağı önce aynı sütunda kal (Canlı TV'de kategoriler / kanallar / kanal kartı)
+    if (!next && (dir === 'up' || dir === 'down')) {
+      const col = ae.closest('.live-col, .live-stage, .md-side');
+      if (col) next = this.best(ae, this.candidates(col), dir);
+    }
+    if (!next) next = this.best(ae, this.candidates(scope), dir);
     // Satırın sonundaysa "Tümünü gör"e geç
     if (!next && dir === 'right' && ae.closest('.row-track')) {
       const more = ae.closest('.row')?.querySelector('.row-more');
@@ -130,6 +141,35 @@ const Spatial = {
     }
     if (!next && dir === 'left' && ae.matches('.row-more')) next = ae.closest('.row').querySelector('.row-track [data-card]:last-child');
     if (next) this.focus(next);
+  },
+
+  // Yalnızca yakındaki adaylar: binlerce öğeli sayfalarda her tuşta tüm sayfayı ölçmemek için
+  near(ae, dir) {
+    const ok = (el) => el !== ae && !el.matches(this.SKIP) && el.getClientRects().length > 0;
+    const horizontal = dir === 'left' || dir === 'right';
+    const track = ae.closest('.row-track');
+    if (track && horizontal) return Array.from(track.children).filter((el) => el.matches('[data-card]') && ok(el));
+    // Aynı liste (kanallar, kategoriler, bölümler, ızgara): DOM sırasında çevredeki öğeler
+    const list = ae.closest('.live-scroll, .grid, #ep-list, .fp-lists, .account-menu');
+    if (list) {
+      const all = $$(this.SEL, list);
+      const i = all.indexOf(ae);
+      if (i >= 0) {
+        const span = list.matches('.grid') ? 40 : 12;
+        const pick = all.slice(Math.max(0, i - span), i + span + 1).filter(ok);
+        if (pick.length > 1) return pick;
+      }
+    }
+    // Satırlar arası: yalnızca komşu iki satır
+    const row = ae.closest('.row');
+    if (row && !horizontal) {
+      const rows = $$('.row', row.closest('.rows') || document);
+      const i = rows.indexOf(row);
+      const around = dir === 'down' ? rows.slice(i + 1, i + 3) : rows.slice(Math.max(0, i - 2), i);
+      const pick = around.flatMap((r) => $$(this.SEL, r)).filter(ok);
+      if (pick.length) return pick;
+    }
+    return null;
   },
 
   best(cur, list, dir) {
