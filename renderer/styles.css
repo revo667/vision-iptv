@@ -770,3 +770,249 @@ video::cue { background: rgba(10, 6, 20, 0.62); color: #fff; font-size: 1.05em; 
   animation: pop 0.18s var(--ease) both;
 }
 .row.menu-open { z-index: 10; }
+
+/* ---------- Çalınamayan izler / ses uyarısı ---------- */
+.track-opt.unsupported { color: var(--text-3); }
+.track-opt.unsupported .radio { border-style: dashed; border-color: rgba(255,255,255,0.25); }
+.track-tag { flex: none; height: 20px; padding: 0 8px; border-radius: 10px; display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; color: #fca5a5; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); }
+.p-notice {
+  position: absolute; top: 100px; right: 32px; z-index: 4; width: 400px; padding: 18px 20px; border-radius: 24px;
+  background: var(--glass-solid); border: 1px solid rgba(239, 68, 68, 0.35); box-shadow: var(--glass-shadow), 0 40px 90px rgba(0,0,0,0.85);
+  animation: pop 0.25s var(--ease) both;
+}
+.p-notice-text { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 14px; }
+.p-notice-text svg.i { width: 26px; height: 26px; color: #fca5a5; flex: none; margin-top: 2px; }
+.p-notice-text b { display: block; font-size: 16px; margin-bottom: 4px; }
+.p-notice-text span { color: var(--text-2); font-size: 14px; line-height: 1.5; }
+.p-notice .acts { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Pencere sürükleme alanı (üst menü) oynatıcı ve pencerelerin düğmelerini yutmasın */
+.player, .modal, .account-menu, .row-menu-list { -webkit-app-region: no-drag; }
+
+/* ---------- Küçük pencere (ad girme / onay / favori listeleri) ---------- */
+.dialog { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: 20px; -webkit-app-region: no-drag; }
+.dialog-backdrop { position: absolute; inset: 0; background: rgba(6, 4, 12, 0.7); backdrop-filter: blur(8px); animation: fade 0.2s both; }
+.dialog-box {
+  position: relative; width: min(440px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; padding: 24px; border-radius: 26px;
+  background: var(--glass-solid); border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow), 0 50px 120px rgba(0,0,0,0.9);
+  animation: pop 0.22s var(--ease) both;
+}
+.dialog-box h3 { margin: 0 0 6px; font-size: 20px; font-weight: 750; }
+.dialog-box p.muted { margin: 0 0 4px; font-size: 14px; }
+.dialog-input {
+  width: 100%; height: 48px; margin-top: 14px; padding: 0 16px; border-radius: 15px; outline: none; user-select: text;
+  background: rgba(0,0,0,0.35); border: 1px solid var(--glass-border); box-shadow: inset 0 2px 6px rgba(0,0,0,0.4);
+}
+.dialog-input:focus { border-color: rgba(167, 139, 250, 0.7); box-shadow: inset 0 2px 6px rgba(0,0,0,0.4), 0 0 18px rgba(139, 92, 246, 0.3); }
+.dialog-acts { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.btn-danger { background: linear-gradient(180deg, #f87171, #dc2626); color: #fff; box-shadow: 0 0 0 1px rgba(252, 165, 165, 0.4), 0 0 22px rgba(239, 68, 68, 0.45); }
+.fp-head { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
+.fp-head > svg.i { width: 30px; height: 30px; color: var(--gold); fill: currentColor; filter: drop-shadow(0 0 10px rgba(252, 211, 77, 0.5)); }
+.fp-head h3 { margin: 0; }
+.fp-lists { display: grid; gap: 6px; }
+.fp-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 15px; text-align: left; border: 1px solid var(--line); background: rgba(255,255,255,0.03); transition: all 0.18s; }
+.fp-item:hover { background: rgba(255,255,255,0.06); }
+.fp-item.on { background: rgba(139, 92, 246, 0.14); border-color: rgba(167, 139, 250, 0.45); }
+.fp-check { width: 22px; height: 22px; flex: none; border-radius: 7px; display: grid; place-items: center; border: 2px solid rgba(255,255,255,0.35); }
+.fp-item.on .fp-check { background: var(--neon-bg); border-color: transparent; box-shadow: 0 0 10px var(--glow); }
+.fp-check svg.i { width: 15px; height: 15px; }
+.fp-name { flex: 1; min-width: 0; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fp-item small { color: var(--text-3); font-size: 12.5px; white-space: nowrap; }
+.fp-empty { padding: 14px; border-radius: 15px; border: 1px dashed var(--line-2); color: var(--text-2); font-size: 14px; }
+.fp-new { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+.fp-new .dialog-input { margin-top: 0; height: 42px; flex: 1; min-width: 0; }
+
+/* Canlı TV: favori listeleri */
+.cat-group { margin: 14px 6px 6px; font-size: 11px; font-weight: 750; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-3); }
+.cat-group:first-child { margin-top: 2px; }
+.cat-item { justify-content: space-between; }
+.cat-item small { flex: none; font-size: 11.5px; color: var(--text-3); }
+.cat-item.active small { color: rgba(255,255,255,0.8); }
+.cat-item.fav svg.i { color: var(--gold); fill: currentColor; }
+.cat-item.fav.active svg.i { color: #fff; }
+.cat-item.new-list { color: var(--accent-3); border: 1px dashed rgba(167, 139, 250, 0.35); margin: 4px 0 6px; }
+.col-title { display: flex; align-items: center; gap: 6px; margin: 0 0 14px 6px; min-height: 30px; }
+.col-title h2 { margin: 0 !important; flex: 1; min-width: 0; }
+.list-acts { display: flex; gap: 2px; flex: none; }
+.list-acts .icon-btn { width: 30px; height: 30px; border-radius: 10px; color: var(--text-2); }
+.list-acts .icon-btn svg.i { width: 16px; height: 16px; }
+.list-acts .icon-btn.danger:hover { color: #fca5a5; background: rgba(239, 68, 68, 0.12); }
+#p-fav.on { color: var(--gold); }
+#p-fav.on svg.i { fill: currentColor; }
+
+/* ---------- Güncelleme kartı ---------- */
+.update-card {
+  position: fixed; right: 24px; bottom: 24px; z-index: 90; width: 370px; padding: 16px 18px; border-radius: 22px;
+  background: var(--glass-solid); border: 1px solid rgba(167, 139, 250, 0.45);
+  box-shadow: var(--glass-shadow), 0 30px 80px rgba(0,0,0,0.8), 0 0 30px rgba(139, 92, 246, 0.25);
+  animation: pop 0.25s var(--ease) both; -webkit-app-region: no-drag;
+}
+.update-text { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+.update-text svg.i { color: var(--accent-2); width: 24px; height: 24px; flex: none; margin-top: 2px; }
+.update-text b { display: block; font-size: 15px; }
+.update-text span { font-size: 13px; color: var(--text-2); }
+.update-card .acts { display: flex; gap: 8px; justify-content: flex-end; }
+.menu-meta { margin-left: auto; font-size: 12px; color: var(--text-3); }
+
+/* ---------- Android: Canlı TV önizleme yerine kanal kartı ---------- */
+.native-live .live-screen video, .native-live .ls-overlay, .native-live .ls-loading { display: none !important; }
+.ls-native { display: grid; justify-items: center; gap: 4px; padding: 20px; }
+.ls-native h3 { margin: 14px 0 2px; font-size: 24px; }
+.ls-native .btn { margin-top: 16px; }
+.now-logo.big { width: 124px; height: 124px; border-radius: 30px; }
+.now-logo.big b { font-size: 24px; }
+
+/* ---------- Windows: sağ üstteki pencere düğmeleri için boşluk ---------- */
+.os-win32 body { font-family: "Segoe UI Variable Display", "Segoe UI", "Inter", sans-serif; }
+.os-win32 .nav { padding-left: var(--pad); padding-right: calc(var(--pad) + 140px); }
+.os-win32 .p-top { padding-right: 170px; }
+.os-win32 .login-brand { top: 54px; }
+
+/* ---------- Android TV: kumandayla gezinme ---------- */
+.tv { --card-w: 178px; }
+.tv *, .tv *::before, .tv *::after { backdrop-filter: none !important; }
+.tv .hero-media img { animation: none; }
+.tv .view, .tv .row-track, .tv .live-scroll, .tv .modal { scroll-behavior: auto; }
+.tv [tabindex], .tv button, .tv a, .tv .card { scroll-margin: calc(var(--nav-h) + 30px) 60px 40px; }
+.tv :focus { outline: none; }
+.tv :focus-visible { outline: 3px solid #ede9fe; outline-offset: 3px; }
+.tv .btn:focus-visible, .tv .round-btn:focus-visible, .tv .pill:focus-visible, .tv .md-close:focus-visible, .tv .back-link:focus-visible, .tv .profile-chip:focus-visible {
+  outline: 3px solid #ede9fe; outline-offset: 3px; box-shadow: 0 0 0 7px rgba(139, 92, 246, 0.45), 0 0 34px rgba(139, 92, 246, 0.7); transform: scale(1.05);
+}
+.tv .card:focus-visible { outline: 3px solid #ede9fe; outline-offset: 2px; }
+.tv .card:focus-visible .card-play { opacity: 1; transform: scale(1); }
+.tv .nav-links a:focus-visible { color: #fff; background: rgba(255,255,255,0.16); outline-offset: 2px; }
+.tv .cat-item:focus-visible, .tv .ch-item:focus-visible, .tv .menu-item:focus-visible, .tv .fp-item:focus-visible, .tv .track-opt:focus-visible, .tv .ep:focus-visible {
+  outline: 2px solid var(--accent-2); outline-offset: 0; background: rgba(139, 92, 246, 0.26); color: #fff;
+}
+.tv .ep:focus-visible .ep-play { opacity: 1; }
+.tv .row:focus-within .row-more { opacity: 1; transform: none; }
+.tv .row-more:focus-visible { color: #fff; outline-offset: 4px; border-radius: 8px; }
+.tv .icon-btn:focus-visible { background: rgba(139, 92, 246, 0.35); }
+.tv .field input:focus, .tv .filter-input:focus, .tv .dialog-input:focus { outline: 3px solid #ede9fe; outline-offset: 2px; }
+.tv .select:focus-within { outline: 3px solid #ede9fe; outline-offset: 2px; }
+.tv .search input:focus { outline: none; }
+.tv .search:focus-within { outline: 3px solid #ede9fe; outline-offset: 2px; }
+.tv .update-card { bottom: 32px; right: 32px; }
+
+/* ---------- Dokunmatik ekranlar: fareyle görünen öğeler hep görünsün ---------- */
+@media (hover: none) {
+  .row-more, .row-menu-btn { opacity: 1; transform: none; }
+  .row-arrow { display: none; }
+  .ch-fav { opacity: 0.6; }
+  .ch-fav.on { opacity: 1; }
+  .card:hover { transform: none; box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 10px 30px -14px rgba(0,0,0,0.8); border-color: rgba(255,255,255,0.08); }
+  .card:hover .card-play { opacity: 0; }
+  .card:hover .card-progress { opacity: 1; }
+  .ls-overlay { opacity: 1; }
+  .ep .ep-play { opacity: 1; background: transparent; }
+}
+
+/* ---------- Telefon ---------- */
+@media (max-width: 760px) {
+  :root { --nav-h: 60px; --pad: 16px; --card-w: 112px; }
+  body { font-size: 14px; }
+  .nav { padding: 0 12px; }
+  /* backdrop-filter sabit konumlu çocukları (alt sekme çubuğu, menüler) nav'a hapseder */
+  .nav, .nav.solid { backdrop-filter: none; }
+  .nav.solid { background: rgba(12, 10, 18, 0.97); }
+  .nav-left { gap: 10px; }
+  .logo-sm { font-size: 17px; letter-spacing: 0.22em; }
+  /* Sekmeler alt çubukta */
+  .nav-links {
+    position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 40; justify-content: space-around; gap: 2px; padding: 6px;
+    border-radius: 22px; background: var(--glass-solid); box-shadow: var(--glass-shadow), 0 -10px 40px rgba(0,0,0,0.6);
+  }
+  .nav-links a { flex: 1; justify-content: center; height: 42px; padding: 0 2px; font-size: 12.5px; border-radius: 15px; }
+  .nav-right { gap: 8px; }
+  .search { width: 44px; padding: 0 2px; }
+  .search input, .search .search-clear { display: none; }
+  .search.open { position: fixed; top: 8px; left: 10px; right: 10px; width: auto; z-index: 50; background: var(--glass-solid); }
+  .search.open input { display: block; }
+  .search.open.has-text .search-clear { display: inline-flex; }
+  .search:focus-within { width: auto; }
+  .profile-chip { padding: 0 4px; height: 44px; }
+  .profile-name, .profile-chev { display: none; }
+  .account-menu { position: fixed; top: calc(var(--nav-h) + 4px); left: 8px; right: 8px; width: auto; max-height: calc(100vh - var(--nav-h) - 90px); overflow-y: auto; }
+
+  .hero { height: 64vh; min-height: 380px; }
+  .hero::before { background: linear-gradient(0deg, rgba(9,8,14,0.94) 12%, rgba(9,8,14,0.35) 55%, transparent 80%); }
+  .hero-content { left: var(--pad); right: var(--pad); width: auto; bottom: 14%; }
+  .hero-kicker { margin-bottom: 10px; }
+  .hero-title { font-size: 30px; margin-bottom: 10px; }
+  .hero-meta { font-size: 13px; gap: 10px; margin-bottom: 8px; }
+  .hero-plot { font-size: 13.5px; -webkit-line-clamp: 2; margin-bottom: 16px; }
+  .hero-actions { gap: 10px; }
+  .hero-actions .btn { height: 44px; padding: 0 18px; font-size: 14.5px; border-radius: 15px; }
+  .hero-media.poster-only img.poster { display: none; }
+  .hero + .rows { margin-top: -5vh; }
+  .rows { padding-bottom: 110px; }
+  .row { margin-bottom: 20px; }
+  .row-head { margin-bottom: 8px; }
+  .row-track { gap: 10px; padding: 12px var(--pad) 18px; margin: -12px 0 -18px; }
+
+  .page-top { padding-top: calc(var(--nav-h) + 12px); }
+  .page-head { gap: 10px; margin-bottom: 16px; }
+  .page-title { font-size: 24px; }
+  .page-head .filter-input { width: 100%; order: 5; }
+  .page-head .spacer { display: none; }
+  .select select { max-width: 200px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 16px 10px; padding-bottom: 110px; }
+  .section-title { font-size: 17px; }
+
+  .modal { padding: 0; }
+  .modal-dialog { border-radius: 0; min-height: 100%; width: 100%; }
+  .md-hero { aspect-ratio: 4/3; }
+  .md-hero.poster-only img.poster { right: 18px; top: 18px; height: 52%; }
+  .md-hero-content { left: 18px; right: 18px; bottom: 18px; }
+  .md-title { font-size: 26px; max-width: 100%; margin-bottom: 14px; }
+  .md-body { grid-template-columns: 1fr; gap: 16px; padding: 4px 18px 20px; }
+  .md-plot { font-size: 14.5px; }
+  .episodes { padding: 4px 14px 24px; }
+  .ep-head h3 { font-size: 20px; }
+  .ep { grid-template-columns: 112px 1fr; gap: 12px; padding: 10px; }
+  .ep-num { display: none; }
+  .ep-title { font-size: 14px; }
+  .ep-plot { font-size: 13px; -webkit-line-clamp: 2; }
+  .md-similar { padding: 4px 14px 40px; }
+  .md-similar-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+
+  /* Canlı TV: kategoriler yatay çipler, altında kanal listesi */
+  .live { grid-template-columns: 1fr; grid-template-rows: auto 1fr; gap: 10px; padding: 4px 10px 78px; }
+  .live-stage { display: none; }
+  .live > .live-col:first-child { border-radius: 20px; }
+  .live > .live-col:first-child .live-col-head { display: none; }
+  .live > .live-col:first-child .live-scroll { flex: none; display: flex; gap: 6px; overflow-x: auto; overflow-y: hidden; padding: 8px; scrollbar-width: none; }
+  .live > .live-col:first-child .live-scroll::-webkit-scrollbar { display: none; }
+  #cat-list .cat-group { display: none; }
+  #cat-list .cat-item { width: auto; flex: none; margin: 0; padding: 9px 14px; white-space: nowrap; }
+  #cat-list .cat-item.new-list { margin: 0; }
+  .live-col-head { padding: 14px 12px 10px; }
+  .ch-item { grid-template-columns: 26px 50px 1fr auto; gap: 10px; }
+  .ch-logo { width: 50px; height: 38px; }
+
+  .toast { bottom: 84px; max-width: calc(100vw - 24px); text-align: center; }
+  .update-card { left: 8px; right: 8px; bottom: 76px; width: auto; }
+  .dialog-box { padding: 20px; }
+  .fp-new { flex-wrap: wrap; }
+  .fp-new .dialog-input { flex-basis: 100%; }
+  .login-card { padding: 34px 22px 26px; }
+  .login-brand { top: 26px; }
+  .login-card h1 { font-size: 26px; }
+  .empty { padding: 8vh var(--pad); }
+}
+
+/* Yatay telefon: alçak ekran */
+@media (max-height: 500px) and (min-width: 761px) {
+  :root { --nav-h: 60px; --card-w: 120px; }
+  .hero { height: 86vh; min-height: 300px; }
+  .hero-title { font-size: 30px; }
+  .hero-plot { -webkit-line-clamp: 2; }
+  .live { grid-template-columns: 200px 1fr; }
+  .live-stage { display: none; }
+  .modal { padding: 0; }
+  .modal-dialog { border-radius: 0; }
+}
+
+/* Ekran klavyesi açıkken (alçak ekran) giriş logosu kartın üstüne binmesin */
+@media (max-height: 600px) { .login-brand { display: none; } .login { align-items: start; padding-top: 16px; overflow-y: auto; } }

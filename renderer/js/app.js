@@ -5,9 +5,15 @@ const App = {
   route: null,
   prevRoute: null,
 
+  history: [],
+
   async init() {
+    await Store.hydrate();
     Player.init();
+    NativePlayer.init();
     Presence.init();
+    Updates.init();
+    window.__vzBack = () => this.back();
     this.bindLogin();
     this.bindNav();
     this.bindKeys();
@@ -38,6 +44,7 @@ const App = {
     $('#shell').hidden = true;
     $('#login').hidden = false;
     $('#login-submit').classList.toggle('loading', busy);
+    Spatial.autoFocus($('#login'));
   },
 
   fillLogin(acc) {
@@ -72,6 +79,14 @@ const App = {
     });
     f.addEventListener('submit', (e) => {
       e.preventDefault();
+      // (TV'de kutular salt okunur olduğu için tarayıcı "zorunlu alan" denetimi çalışmaz)
+      const missing = !f.server.value.trim() ? 'Sunucu adresini gir.' : !f.username.value.trim() ? 'Kullanıcı adını gir.' : !f.password.value.trim() ? 'Şifreni gir.' : '';
+      if (missing) {
+        const err = $('#login-error');
+        err.textContent = missing;
+        err.hidden = false;
+        return;
+      }
       this.login({ profile: f.profile.value.trim(), server: normalizeServer(f.server.value), username: f.username.value.trim(), password: f.password.value.trim() });
     });
   },
@@ -173,9 +188,10 @@ const App = {
         </div>
       </div>
       <button class="menu-item" data-act="toggle-adult">${icon('shield')}Yetişkin içerikleri gizle<span class="switch ${Settings.hideAdult ? 'on' : ''}"></span></button>
-      <button class="menu-item" data-act="toggle-discord">${icon('discord')}Discord'da ne izlediğimi göster<span class="switch ${Settings.discord ? 'on' : ''}"></span></button>
+      ${window.native?.isElectron ? `<button class="menu-item" data-act="toggle-discord">${icon('discord')}Discord'da ne izlediğimi göster<span class="switch ${Settings.discord ? 'on' : ''}"></span></button>` : ''}
       ${Catalog.hasOverrides() ? `<button class="menu-item" data-act="reset-cats">${icon('restart')}Gizlenen / taşınan kategorileri sıfırla</button>` : ''}
       <button class="menu-item" data-act="refresh">${icon('refresh')}Kataloğu yenile</button>
+      ${Updates.supported ? `<button class="menu-item" data-act="check-update">${icon('external')}Güncellemeleri denetle<small class="menu-meta">v${esc(Updates.version)}</small></button>` : ''}
       <button class="menu-item" data-act="logout">${icon('logout')}Çıkış yap</button>`;
   },
 
@@ -198,6 +214,7 @@ const App = {
       }
       if (!e.target.closest('#account')) { menu.hidden = true; $('.profile-chip')?.classList.remove('open'); }
       if (act === 'logout') this.logout();
+      if (act === 'check-update') { menu.hidden = true; Updates.check(); }
       if (act === 'refresh') {
         this.api?.clearCache();
         Catalog.reset();
@@ -271,7 +288,8 @@ const App = {
 
   openSearch() {
     $('#search').classList.add('open');
-    $('#search-input').focus();
+    if (window.native?.editText) window.native.editText($('#search-input'));
+    else $('#search-input').focus();
   },
 
   leaveSearch() {
@@ -281,10 +299,45 @@ const App = {
     }
   },
 
-  go(name, params = {}, { replace = false } = {}) {
+  // Geri tuşu (Android): açık pencereleri kapat, sonra önceki sayfaya dön. false → uygulamadan çık
+  back() {
+    if (Dialog.isOpen) { Dialog.close(); return true; }
+    const menu = $('#account-menu');
+    if (!menu.hidden) {
+      menu.hidden = true;
+      $('.profile-chip')?.classList.remove('open');
+      $('.profile-chip')?.focus();
+      return true;
+    }
+    if ($$('.row-menu-list').some((l) => !l.hidden)) { closeRowMenus(); return true; }
+    if (!$('#modal').hidden) { Detail.close(); return true; }
+    if (Player.isOpen) { Player.close(); return true; }
+    if (!$('#login').hidden) return false;
+    const input = $('#search-input');
+    if (this.route?.name === 'search' || $('#search').classList.contains('open')) {
+      input.value = '';
+      input.blur();
+      $('#search').classList.remove('open', 'has-text');
+      this.leaveSearch();
+      return true;
+    }
+    if (this.route && this.route.name !== 'home') {
+      const prev = this.history.pop();
+      this.go(prev ? prev.name : 'home', prev ? prev.params : {}, { back: true });
+      return true;
+    }
+    return false;
+  },
+
+  go(name, params = {}, { replace = false, back = false } = {}) {
     if (!this.api) return;
     if (this.route?.name === 'live') Live.leave();
     Detail.close();
+    if (!replace && !back && this.route && this.route.name !== 'search' && this.route.name !== name) {
+      this.history.push(this.route);
+      if (this.history.length > 30) this.history.shift();
+    }
+    if (name === 'home') this.history = [];
     if (!replace && this.route && this.route.name !== 'search') this.prevRoute = this.route;
     this.route = { name, params };
 
@@ -315,6 +368,7 @@ const App = {
       search: () => Views.search(view, params),
       live: () => Live.render(view, params),
     }[name];
+    Spatial.autoFocus(view);
     Promise.resolve(render?.()).catch((e) => {
       if (!view.isConnected) return;
       view.innerHTML = `<div class="page-top">${emptyHtml('alert', 'Bir sorun oluştu', e.message || 'İçerik yüklenemedi.')}</div>`;
@@ -324,6 +378,10 @@ const App = {
   /* ---------- Klavye ---------- */
   bindKeys() {
     document.addEventListener('keydown', (e) => {
+      if (Dialog.isOpen) {
+        if (e.key === 'Escape') { e.preventDefault(); Dialog.close(); }
+        return;
+      }
       if (Player.onKey(e)) { e.preventDefault(); return; }
       if (Player.isOpen) return;
       if (!$('#modal').hidden) {

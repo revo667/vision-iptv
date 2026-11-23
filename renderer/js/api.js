@@ -55,7 +55,10 @@ class Xtream {
     const t = setTimeout(() => ctrl.abort(), timeout);
     let res;
     try {
-      res = await fetch(this.url(params), { signal: ctrl.signal, cache: 'no-store' });
+      const target = this.url(params);
+      // Android: istek uygulamanın yerel vekilinden geçer (CORS / http kısıtı yok)
+      const url = window.native?.proxy ? window.native.proxy(target) : target;
+      res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' });
     } catch (e) {
       throw new XtreamError(e.name === 'AbortError'
         ? 'Sunucu yanıt vermedi (zaman aşımı).'
@@ -63,6 +66,7 @@ class Xtream {
     } finally {
       clearTimeout(t);
     }
+    if (res.headers.get('x-vision-error') === 'network') throw new XtreamError('Sunucuya bağlanılamadı. Adresi ve internet bağlantını kontrol et.', 'network');
     if (res.status === 401 || res.status === 403) throw new XtreamError('Kullanıcı adı veya şifre hatalı ya da hesap engellenmiş.', 'auth');
     if (!res.ok) throw new XtreamError(`Sunucu hatası (${res.status}).`, 'http');
     const text = await res.text();
@@ -101,6 +105,13 @@ class Xtream {
     const f = this.info?.user_info?.allowed_output_formats || [];
     if (!f.length || f.includes('m3u8')) return 'm3u8';
     return f.includes('ts') ? 'ts' : f[0];
+  }
+
+  // Android oynatıcısı için canlı yayın biçimleri: önce TS (daha kararlı), sonra HLS
+  get liveFormats() {
+    const f = this.info?.user_info?.allowed_output_formats || [];
+    const out = ['ts', 'm3u8'].filter((x) => !f.length || f.includes(x));
+    return out.length ? out : [f[0] || 'ts'];
   }
 
   async list(action, params) {

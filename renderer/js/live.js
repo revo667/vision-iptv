@@ -24,7 +24,7 @@ const Live = {
         </div>
         <div class="live-col glass-col">
           <div class="live-col-head">
-            <h2 id="cat-title">Kanallar</h2>
+            <div class="col-title"><h2 id="cat-title">Kanallar</h2><div class="list-acts" id="list-acts"></div></div>
             <input class="filter-input" id="ch-filter" placeholder="Kanal ara" spellcheck="false">
           </div>
           <div class="live-scroll" id="ch-list"></div>
@@ -56,6 +56,9 @@ const Live = {
         </div>
       </div>`;
 
+    // Android: önizleme yok; kanala odaklanınca yayın akışı görünür, seçince tam ekran oynatıcı açılır
+    this.native = NativePlayer.available;
+    if (this.native) $('.live', view).classList.add('native-live');
     const video = $('#ls-video', view);
     video.volume = Settings.volume;
     video.muted = Settings.muted;
@@ -76,8 +79,13 @@ const Live = {
 
     view.querySelector('.live-stage').addEventListener('click', (e) => this.onStageClick(e));
     $('#cat-list', view).addEventListener('click', (e) => {
+      if (e.target.closest('[data-act="new-list"]')) { this.newList(); return; }
       const b = e.target.closest('[data-cat]');
       if (b) this.selectCategory(b.dataset.cat);
+    });
+    $('#list-acts', view).addEventListener('click', (e) => {
+      const a = e.target.closest('[data-la]')?.dataset.la;
+      if (a) this.listAction(a);
     });
     const chList = $('#ch-list', view);
     chList.addEventListener('click', (e) => {
@@ -87,11 +95,12 @@ const Live = {
       const ch = this.filtered.find((c) => String(c.id) === b.dataset.ch);
       if (!ch) return;
       if (fav) {
-        const on = Library.toggleFav(ch);
-        fav.classList.toggle('on', on);
-        this.updateFavBtn();
-        toast(on ? 'Favori kanallara eklendi' : 'Favorilerden çıkarıldı');
-        if (this.catId === 'fav') this.selectCategory('fav', true);
+        FavPicker.open(ch, { onChange: () => this.refreshFavs() });
+        return;
+      }
+      if (this.native) {
+        this.select(ch, { play: false });
+        this.openFull();
         return;
       }
       this.select(ch);
@@ -100,16 +109,26 @@ const Live = {
       const b = e.target.closest('[data-ch]');
       if (b && !e.target.closest('[data-fav]')) this.openFull();
     });
+    if (this.native) {
+      chList.addEventListener('focusin', debounce((e) => {
+        const b = e.target.closest?.('[data-ch]');
+        if (!b || !this.view) return;
+        const ch = this.filtered.find((c) => String(c.id) === b.dataset.ch);
+        if (ch && ch !== this.current) this.select(ch, { play: false, scroll: false });
+      }, 220));
+    }
     $('#ch-filter', view).addEventListener('input', debounce(() => this.renderChannels(), 150));
     $('#cat-filter', view).addEventListener('input', debounce(() => this.renderCats(), 150));
 
     const cats = await Catalog.visibleCategories('live');
     if (!view.isConnected) return;
-    this.cats = [{ id: 'fav', name: 'Favoriler', fav: true }, { id: 'all', name: 'Tüm kanallar' }, ...cats];
+    this.liveCats = cats;
+    this.buildCats();
     this.renderCats();
 
     const last = Library.lastChannel();
-    const startCat = params.cat || (last && last.cat) || (Library.favList('live').length ? 'fav' : cats[0]?.id || 'all');
+    const firstList = Library.chLists().find((l) => l.items.length);
+    const startCat = params.cat || (last && last.cat) || (firstList ? `list:${firstList.id}` : cats[0]?.id || 'all');
     await this.selectCategory(String(startCat));
     if (last) {
       $('#ls-last', view).innerHTML = `<button class="btn btn-primary btn-sm" data-ls="resume-last">${icon('play')}<span class="btn-label">${esc(last.name)} izlemeye devam et</span></button>`;
@@ -132,30 +151,107 @@ const Live = {
     if (!Player.isOpen) Presence.clear();
     clearInterval(this.epgTimer);
     this.engine?.stop();
+    if (this.engine) Engines.all.delete(this.engine);
     this.engine = null;
     this.current = null;
     this.view?.classList.remove('no-scroll');
     this.view = null;
   },
 
+  // Favori listeleri + "Tüm kanallar" + sağlayıcının kategorileri
+  buildCats() {
+    const lists = Library.chLists().map((l) => ({ id: `list:${l.id}`, listId: l.id, name: l.name, fav: true, count: l.items.length }));
+    this.cats = [...lists, { id: 'all', name: 'Tüm kanallar' }, ...(this.liveCats || [])];
+  },
+
   renderCats() {
     const q = normText($('#cat-filter', this.view)?.value || '');
-    $('#cat-list', this.view).innerHTML = this.cats
-      .filter((c) => !q || c.fav || c.id === 'all' || normText(c.name).includes(q))
-      .map((c) => `<button class="cat-item ${c.id === this.catId ? 'active' : ''}" data-cat="${esc(c.id)}">
-          <span>${c.fav ? icon('star') + ' ' : ''}${esc(c.name)}</span></button>`)
-      .join('');
+    const item = (c) => `<button class="cat-item ${c.fav ? 'fav' : ''} ${c.id === this.catId ? 'active' : ''}" data-cat="${esc(c.id)}">
+        <span>${c.fav ? icon('star') + ' ' : ''}${esc(c.name)}</span>${c.fav ? `<small>${c.count}</small>` : ''}</button>`;
+    const lists = this.cats.filter((c) => c.fav);
+    const rest = this.cats.filter((c) => !c.fav && (!q || c.id === 'all' || normText(c.name).includes(q)));
+    $('#cat-list', this.view).innerHTML = `
+      <div class="cat-group">Favori listelerim</div>
+      ${lists.map(item).join('')}
+      <button class="cat-item new-list" data-act="new-list"><span>${icon('plus')} Yeni liste oluştur</span></button>
+      <div class="cat-group">Kategoriler</div>
+      ${rest.map(item).join('')}`;
+  },
+
+  async newList() {
+    const name = await Dialog.prompt({ title: 'Yeni favori listesi', placeholder: 'Liste adı (ör. Spor, Haber, Çocuk)', ok: 'Oluştur' });
+    if (!name || !this.view) return;
+    const l = Library.createChList(name);
+    toast(`“${l.name}” oluşturuldu — kanallardaki ★ ile ekleyebilirsin`);
+    this.buildCats();
+    this.selectCategory(`list:${l.id}`);
+  },
+
+  async listAction(a) {
+    const cat = this.cats.find((c) => c.id === this.catId);
+    if (!cat?.listId) return;
+    if (a === 'rename') {
+      const name = await Dialog.prompt({ title: 'Listeyi yeniden adlandır', value: cat.name });
+      if (name && Library.renameChList(cat.listId, name)) toast('Liste adı güncellendi');
+    } else if (a === 'delete') {
+      const ok = await Dialog.confirm({ title: `“${cat.name}” silinsin mi?`, text: 'Kanallar silinmez, yalnızca bu favori listesi kaldırılır.', ok: 'Sil', danger: true });
+      if (!ok) return;
+      Library.deleteChList(cat.listId);
+      toast('Liste silindi');
+      if (!this.view) return;
+      this.buildCats();
+      const first = this.cats.find((c) => c.fav);
+      return this.selectCategory(first ? first.id : 'all');
+    } else if (a === 'up' || a === 'down') {
+      Library.moveChList(cat.listId, a === 'up' ? -1 : 1);
+    }
+    if (!this.view) return;
+    this.buildCats();
+    this.selectCategory(this.catId, true);
+  },
+
+  renderListActs() {
+    const cat = this.cats.find((c) => c.id === this.catId);
+    const el = $('#list-acts', this.view);
+    if (!el) return;
+    if (!cat?.listId) { el.innerHTML = ''; return; }
+    const lists = this.cats.filter((c) => c.fav);
+    const i = lists.indexOf(cat);
+    el.innerHTML = `
+      ${i > 0 ? `<button class="icon-btn" data-la="up" title="Yukarı taşı">${icon('chevUp')}</button>` : ''}
+      ${i < lists.length - 1 ? `<button class="icon-btn" data-la="down" title="Aşağı taşı">${icon('chevDown')}</button>` : ''}
+      <button class="icon-btn" data-la="rename" title="Yeniden adlandır">${icon('pencil')}</button>
+      <button class="icon-btn danger" data-la="delete" title="Listeyi sil">${icon('close')}</button>`;
+  },
+
+  // Favoriler değişince yıldızları ve açık listeyi yenile
+  refreshFavs() {
+    if (!this.view) return;
+    this.buildCats();
+    this.renderCats();
+    this.updateFavBtn();
+    if (this.cats.find((c) => c.id === this.catId)?.fav) {
+      this.selectCategory(this.catId, true);
+    } else {
+      const ids = Library.chFavIds();
+      for (const el of this.view.querySelectorAll('#ch-list [data-ch]')) el.querySelector('[data-fav]')?.classList.toggle('on', ids.has(el.dataset.ch));
+    }
   },
 
   async selectCategory(id, keepScroll) {
+    if (id === 'fav') { // eski tek favori listesi
+      const first = this.cats.find((c) => c.fav);
+      id = first ? first.id : 'all';
+    }
     this.catId = id;
     this.renderCats();
+    this.renderListActs();
     const cat = this.cats.find((c) => c.id === id) || { name: 'Kanallar' };
     $('#cat-title', this.view).textContent = cat.name;
     const list = $('#ch-list', this.view);
     if (!keepScroll) list.innerHTML = '<div class="center-load" style="padding:40px 0"><div class="spinner"></div></div>';
     try {
-      if (id === 'fav') this.channels = Library.favList('live').map(reg);
+      if (id.startsWith('list:')) this.channels = (Library.chList(id.slice(5))?.items || []).map(reg);
       else if (id === 'all') this.channels = await Catalog.all('live');
       else this.channels = await Catalog.items('live', id);
     } catch (e) {
@@ -171,17 +267,18 @@ const Live = {
     const q = normText($('#ch-filter', this.view).value);
     this.filtered = q ? this.channels.filter((c) => normText(c.name).includes(q)) : this.channels;
     if (!this.filtered.length) {
-      list.innerHTML = `<div class="empty" style="padding:40px 10px">${icon(this.catId === 'fav' ? 'star' : 'tv')}<p>${this.catId === 'fav' ? 'Henüz favori kanalın yok. Kanalların yanındaki ★ simgesine tıkla.' : 'Kanal bulunamadı.'}</p></div>`;
+      const isList = this.catId.startsWith('list:');
+      list.innerHTML = `<div class="empty" style="padding:40px 10px">${icon(isList ? 'star' : 'tv')}<p>${isList ? 'Bu liste boş. Bir kategoriden kanal seçip yanındaki ★ simgesiyle bu listeye ekleyebilirsin.' : 'Kanal bulunamadı.'}</p></div>`;
       return;
     }
     const scroll = list.scrollTop;
-    const favs = Library.favs();
+    const favIds = Library.chFavIds();
     const row = (c) => `
       <button class="ch-item ${this.current && c.id === this.current.id ? 'active' : ''}" data-ch="${esc(c.id)}">
         <span class="ch-num">${esc(c.num ?? '')}</span>
         <span class="ch-logo">${imgTag(c.icon, '', 'data-hide-broken')}<b>${esc(initials(c.name))}</b></span>
         <span class="ch-text"><div>${esc(c.name)}</div></span>
-        <span class="ch-fav ${favs['live:' + c.id] ? 'on' : ''}" data-fav title="Favori">${icon('star')}</span>
+        <span class="ch-fav ${favIds.has(String(c.id)) ? 'on' : ''}" data-fav title="Favori listelerine ekle">${icon('star')}</span>
       </button>`;
     list.innerHTML = '';
     let i = 0;
@@ -204,17 +301,30 @@ const Live = {
     if (scroll) $(`#ch-list [data-ch="${CSS.escape(String(id))}"]`, this.view)?.scrollIntoView({ block: 'nearest' });
   },
 
-  select(ch, { play = true } = {}) {
+  select(ch, { play = true, scroll = true } = {}) {
     if (!this.view) return;
     this.current = ch;
-    this.markActive(ch.id, true);
-    Library.setLastChannel({ ...ch, cat: this.catId === 'fav' || this.catId === 'all' ? this.catId : ch.cat });
-    $('#ls-ph', this.view).hidden = true;
+    this.markActive(ch.id, scroll);
+    Library.setLastChannel({ ...ch, cat: this.catId.startsWith('list:') || this.catId === 'all' ? this.catId : ch.cat });
+    if (this.native) this.paintNativeStage(ch);
+    else $('#ls-ph', this.view).hidden = true;
     $('#ls-error', this.view).hidden = true;
     $('#ls-name', this.view).textContent = ch.name;
     this.updateFavBtn();
     this.renderNow(true);
-    if (play) this.playDebounced(ch);
+    if (play && !this.native) this.playDebounced(ch);
+  },
+
+  // Android: önizleme alanında kanal kartı
+  paintNativeStage(ch) {
+    const ph = $('#ls-ph', this.view);
+    ph.hidden = false;
+    ph.innerHTML = `<div class="ls-native">
+        <div class="now-logo big">${imgTag(ch.icon, '', 'data-hide-broken')}<b>${esc(initials(ch.name))}</b></div>
+        <h3>${esc(ch.name)}</h3>
+        <p class="muted">${window.native?.isTv ? 'İzlemek için kumandada OK tuşuna bas' : 'İzlemek için kanala dokun'}</p>
+        <button class="btn btn-primary btn-sm" data-ls="full">${icon('play')}<span class="btn-label">Tam ekran izle</span></button>
+      </div>`;
   },
 
   playDebounced: debounce(function (ch) {
@@ -227,9 +337,9 @@ const Live = {
   updateFavBtn() {
     const b = $('#ls-fav', this.view);
     if (!b || !this.current) return;
-    const on = Library.isFav(this.current);
+    const on = Library.isChFav(this.current);
     b.classList.toggle('on', on);
-    b.title = on ? 'Favorilerden çıkar' : 'Favorilere ekle';
+    b.title = on ? 'Favori listelerini düzenle' : 'Favori listesine ekle';
   },
 
   async renderNow(fetchNew) {
@@ -277,19 +387,16 @@ const Live = {
     switch (b.dataset.ls) {
       case 'mute': video.muted = !video.muted; Settings.muted = video.muted; break;
       case 'fav':
-        if (this.current) {
-          const on = Library.toggleFav(this.current);
-          this.updateFavBtn();
-          const star = $(`#ch-list [data-ch="${CSS.escape(String(this.current.id))}"] [data-fav]`, this.view);
-          star?.classList.toggle('on', on);
-          toast(on ? 'Favori kanallara eklendi' : 'Favorilerden çıkarıldı');
-        }
+        if (this.current) FavPicker.open(this.current, { onChange: () => this.refreshFavs() });
         break;
       case 'full': this.openFull(); break;
       case 'retry': if (this.current) this.select(this.current); break;
       case 'resume-last': {
         const last = Library.lastChannel();
-        if (last) this.select(this.channels.find((c) => c.id === last.id) || reg(last));
+        if (last) {
+          this.select(this.channels.find((c) => c.id === last.id) || reg(last), { play: !this.native });
+          if (this.native) this.openFull();
+        }
         break;
       }
       case 'external':
@@ -298,7 +405,7 @@ const Live = {
             const url = App.api.liveUrl(this.current.id, 'ts');
             if (!players.length) {
               if (window.native) await window.native.copy(url);
-              toast('IINA/VLC bulunamadı — yayın bağlantısı panoya kopyalandı');
+              toast('Harici oynatıcı bulunamadı — yayın bağlantısı panoya kopyalandı');
               return;
             }
             this.engine.stop();

@@ -1,0 +1,86 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Sürüm package.json'dan (CI'da VISION_VERSION / VISION_VERSION_CODE ile ezilir)
+def pkg = new groovy.json.JsonSlurper().parse(rootProject.file('../package.json'))
+def verName = System.getenv('VISION_VERSION') ?: pkg.version
+def verParts = verName.tokenize('.-+').findAll { it.isInteger() }.collect { it.toInteger() } + [0, 0, 0]
+def verCode = (System.getenv('VISION_VERSION_CODE') ?: (verParts[0] * 1000000 + verParts[1] * 1000 + verParts[2]).toString()).toInteger()
+
+// İmza: CI'da ortam değişkenleri, yerelde android/keystore.properties
+def ksProps = new Properties()
+def ksPropsFile = rootProject.file('keystore.properties')
+if (ksPropsFile.exists()) ksPropsFile.withInputStream { ksProps.load(it) }
+def ksFile = System.getenv('VISION_KEYSTORE') ?: ksProps.getProperty('storeFile')
+def hasKeystore = ksFile && file(ksFile).exists()
+
+android {
+    namespace 'com.revo667.vision'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.revo667.vision'
+        minSdk 24
+        targetSdk 35
+        versionCode verCode
+        versionName verName
+        buildConfigField 'String', 'UPDATE_REPO', '"revo667/vision-iptv"'
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    signingConfigs {
+        release {
+            if (hasKeystore) {
+                storeFile file(ksFile)
+                storePassword System.getenv('VISION_KEYSTORE_PASSWORD') ?: ksProps.getProperty('storePassword')
+                keyAlias System.getenv('VISION_KEY_ALIAS') ?: ksProps.getProperty('keyAlias')
+                keyPassword System.getenv('VISION_KEY_PASSWORD') ?: ksProps.getProperty('keyPassword')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig hasKeystore ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+}
+
+// Arayüz (renderer) dosyalarını APK'ya kopyala
+def copyWeb = tasks.register('copyWeb', Copy) {
+    def root = rootProject.file('..')
+    into file('src/main/assets/www')
+    from(new File(root, 'renderer')) {
+        into 'renderer'
+        exclude '**/.DS_Store'
+    }
+    from(new File(root, 'node_modules/hls.js/dist/hls.min.js')) { into 'node_modules/hls.js/dist' }
+    from(new File(root, 'node_modules/mpegts.js/dist/mpegts.js')) { into 'node_modules/mpegts.js/dist' }
+}
+tasks.named('preBuild') { dependsOn copyWeb }
+
+dependencies {
+    def media3 = '1.9.4'
+    implementation "androidx.media3:media3-exoplayer:$media3"
+    implementation "androidx.media3:media3-exoplayer-hls:$media3"
+    implementation "androidx.media3:media3-ui:$media3"
+    // AC3 / E-AC3 / DTS / TrueHD gibi cihazın çözemediği ses formatları için yazılımsal çözücü
+    implementation 'org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1'
+    implementation 'androidx.webkit:webkit:1.18.0'
+}

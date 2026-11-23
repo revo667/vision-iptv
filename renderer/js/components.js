@@ -338,6 +338,7 @@ const Detail = {
   item: null,
 
   async open(item, { autoplay = false } = {}) {
+    if (!this.item) this.returnFocus = document.activeElement;
     this.item = item;
     const modal = $('#modal');
     const dlg = $('#modal-dialog');
@@ -361,7 +362,14 @@ const Detail = {
     const modal = $('#modal');
     if (modal.hidden) return;
     modal.classList.add('closing');
-    setTimeout(() => { modal.hidden = true; modal.classList.remove('closing'); $('#modal-dialog').innerHTML = ''; }, 190);
+    const rf = this.returnFocus;
+    this.returnFocus = null;
+    setTimeout(() => {
+      modal.hidden = true;
+      modal.classList.remove('closing');
+      $('#modal-dialog').innerHTML = '';
+      if (rf?.isConnected && (!document.activeElement || document.activeElement === document.body)) rf.focus({ preventScroll: true });
+    }, 190);
     this.item = null;
   },
 
@@ -415,7 +423,9 @@ const Detail = {
       toast(on ? 'Listene eklendi' : 'Listenden çıkarıldı');
     });
     $('[data-md=trailer]', dlg)?.addEventListener('click', (e) => {
-      window.open(`https://www.youtube.com/watch?v=${encodeURIComponent(e.currentTarget.dataset.yt)}`, '_blank');
+      const url = `https://www.youtube.com/watch?v=${encodeURIComponent(e.currentTarget.dataset.yt)}`;
+      if (window.native?.openUrl) window.native.openUrl(url);
+      else window.open(url, '_blank');
     });
   },
 
@@ -458,6 +468,7 @@ const Detail = {
       </div>
       <div id="md-similar"></div>`;
     $('[data-md=play]', dlg).onclick = () => { this.close(); Player.playMovie(item, { resume: true }); };
+    Spatial.autoFocus(dlg);
     $('[data-md=restart]', dlg)?.addEventListener('click', () => { this.close(); Player.playMovie(item, { resume: false }); });
     this.bindCommon(item);
     this.similarHtml(item).then((html) => { if (this.item === item) $('#md-similar').innerHTML = html; });
@@ -539,6 +550,7 @@ const Detail = {
       Player.playEpisode(item, eps, +r.dataset.ep);
     };
     $('[data-md=play]', dlg).onclick = () => { if (cur) { this.close(); Player.playEpisode(item, eps, curIdx); } };
+    Spatial.autoFocus(dlg);
     this.bindCommon(item);
     this.similarHtml(item).then((html) => { if (this.item === item) $('#md-similar').innerHTML = html; });
   },

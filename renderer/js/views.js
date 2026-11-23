@@ -129,10 +129,10 @@ const Views = {
   mylist(view) {
     const movies = Library.favList('movie').map(reg);
     const series = Library.favList('series').map(reg);
-    const live = Library.favList('live').map(reg);
+    const lists = Library.chLists().filter((l) => l.items.length);
     view.innerHTML = `<div class="page-top"><div class="page-head"><h1 class="page-title">Listem</h1></div><div id="ml"></div></div>`;
     const ml = $('#ml', view);
-    if (!movies.length && !series.length && !live.length) {
+    if (!movies.length && !series.length && !lists.length) {
       ml.innerHTML = emptyHtml('heart', 'Listen henüz boş', 'Beğendiğin film ve dizilerde + simgesine, kanallarda ★ simgesine tıklayarak listene ekleyebilirsin.');
       return;
     }
@@ -145,7 +145,7 @@ const Views = {
     };
     section('Filmler', movies, 'poster');
     section('Diziler', series, 'poster');
-    section('Kanallar', live, 'channel');
+    for (const l of lists) section(`★ ${esc(l.name)}`, l.items.map(reg), 'channel');
   },
 
   async search(view, { q }) {
