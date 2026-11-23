@@ -63,13 +63,15 @@ const Updates = {
     let el = $('#update-card');
     if (!el) {
       el = h('<div id="update-card" class="update-card" hidden></div>');
-      ($('#shell') || document.body).appendChild(el);
       el.addEventListener('click', (e) => {
         const a = e.target.closest('[data-upd]')?.dataset.upd;
         if (a === 'install') this.install();
         if (a === 'later') { el.hidden = true; this.dismissed = this.info?.version; }
       });
     }
+    // Giriş ekranında da görünsün (kumandayla ulaşılabilsin diye açık olan katmanın içine)
+    const parent = $('#login') && !$('#login').hidden ? $('#login') : $('#shell') || document.body;
+    if (el.parentElement !== parent) parent.appendChild(el);
     return el;
   },
 

@@ -27,7 +27,7 @@ import androidx.media3.common.Player;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.DefaultDataSource;
-import androidx.media3.datasource.DefaultHttpDataSource;
+import androidx.media3.datasource.okhttp.OkHttpDataSource;
 import androidx.media3.datasource.HttpDataSource;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
@@ -118,11 +118,9 @@ public class PlayerActivity extends Activity {
         DefaultRenderersFactory rf = new DefaultRenderersFactory(this)
                 .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
                 .setEnableDecoderFallback(true);
-        DefaultHttpDataSource.Factory http = new DefaultHttpDataSource.Factory()
-                .setUserAgent(ApiProxy.USER_AGENT)
-                .setAllowCrossProtocolRedirects(true)
-                .setConnectTimeoutMs(15000)
-                .setReadTimeoutMs(30000);
+        // API ile aynı ağ katmanı: şifreli DNS + IPv4 önceliği, http↔https yönlendirmeleri
+        OkHttpDataSource.Factory http = new OkHttpDataSource.Factory(Net.client())
+                .setUserAgent(ApiProxy.USER_AGENT);
         player = new ExoPlayer.Builder(this, rf)
                 .setTrackSelector(selector)
                 .setMediaSourceFactory(new DefaultMediaSourceFactory(new DefaultDataSource.Factory(this, http)))

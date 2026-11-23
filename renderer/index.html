@@ -28,19 +28,19 @@
       </label>
 
       <label class="field">
-        <input name="server" type="text" placeholder=" " spellcheck="false" required />
+        <input name="server" type="text" placeholder=" " spellcheck="false" autocapitalize="none" autocorrect="off" autocomplete="off" inputmode="url" required />
         <span>Sunucu adresi (DNS URL)</span>
       </label>
       <div class="hint">Örnek: http://sunucu.com:8080 — M3U linkini de yapıştırabilirsin.</div>
 
       <label class="field">
-        <input name="username" type="text" class="masked" placeholder=" " spellcheck="false" autocomplete="off" required />
+        <input name="username" type="text" class="masked" placeholder=" " spellcheck="false" autocapitalize="none" autocorrect="off" autocomplete="off" required />
         <span>Kullanıcı adı</span>
         <button type="button" class="field-eye" data-act="toggle-user" aria-label="Kullanıcı adını göster"></button>
       </label>
 
       <label class="field">
-        <input name="password" type="password" placeholder=" " spellcheck="false" required />
+        <input name="password" type="password" placeholder=" " spellcheck="false" autocapitalize="none" autocorrect="off" required />
         <span>Şifre</span>
         <button type="button" class="field-eye" data-act="toggle-pass" aria-label="Şifreyi göster"></button>
       </label>
@@ -51,7 +51,7 @@
         <span class="btn-label">Giriş yap</span>
         <span class="spinner sm"></span>
       </button>
-      <p class="login-foot">Bilgilerin yalnızca bu cihazda, şifrelenmiş olarak saklanır.</p>
+      <p class="login-foot">Bilgilerin yalnızca bu cihazda, şifrelenmiş olarak saklanır.<span id="app-version"></span></p>
     </form>
   </section>
 

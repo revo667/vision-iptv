@@ -1,7 +1,7 @@
 /* Xtream Codes API istemcisi */
 
 function normalizeServer(input) {
-  let s = String(input || '').trim();
+  let s = String(input || '').replace(/\s+/g, '');
   if (!s) return '';
   if (!/^https?:\/\//i.test(s)) s = 'http://' + s;
   try {
@@ -21,6 +21,22 @@ function parseM3uLink(input) {
     if (username && password) return { server: u.origin, username, password };
   } catch {}
   return null;
+}
+
+// Android vekilinin bildirdiği bağlantı hatasını anlaşılır hale getir
+function describeNetError(raw, server) {
+  let d = '';
+  try { d = decodeURIComponent(String(raw || '').replace(/\+/g, ' ')); } catch { d = String(raw || ''); }
+  let host = server;
+  try { host = new URL(server).host; } catch {}
+  let why;
+  if (/UnknownHost/i.test(d)) why = `“${host}” adı bulunamadı. Sunucu adresini kontrol et.`;
+  else if (/SocketTimeout|timed? ?out/i.test(d)) why = `“${host}” yanıt vermedi (zaman aşımı).`;
+  else if (/ConnectException|refused|NoRouteToHost|unreachable/i.test(d)) why = `“${host}” sunucusuna ulaşılamıyor; adres veya port numarası yanlış olabilir.`;
+  else if (/SSL|Certificate|Handshake|CertPath|Trust/i.test(d)) why = `“${host}” ile güvenli bağlantı kurulamadı. Cihazın tarih ve saatini kontrol et ya da adresi http:// ile dene.`;
+  else if (/BadUrl/.test(d)) why = 'Sunucu adresi geçersiz.';
+  else why = `“${host}” sunucusuna bağlanılamadı.`;
+  return d ? `${why}\nAyrıntı: ${d}` : why;
 }
 
 class XtreamError extends Error {
@@ -66,7 +82,7 @@ class Xtream {
     } finally {
       clearTimeout(t);
     }
-    if (res.headers.get('x-vision-error') === 'network') throw new XtreamError('Sunucuya bağlanılamadı. Adresi ve internet bağlantını kontrol et.', 'network');
+    if (res.headers.get('x-vision-error') === 'network') throw new XtreamError(describeNetError(res.headers.get('x-vision-error-detail'), this.server), 'network');
     if (res.status === 401 || res.status === 403) throw new XtreamError('Kullanıcı adı veya şifre hatalı ya da hesap engellenmiş.', 'auth');
     if (!res.ok) throw new XtreamError(`Sunucu hatası (${res.status}).`, 'http');
     const text = await res.text();
@@ -90,7 +106,7 @@ class Xtream {
   clearCache() { this.cache.clear(); }
 
   async authenticate() {
-    const data = await this.fetchJson({}, 20000);
+    const data = await this.fetchJson({}, 30000);
     if (!data || !data.user_info) throw new XtreamError('Bu adres bir Xtream Codes sunucusu gibi görünmüyor.', 'parse');
     if (Number(data.user_info.auth) !== 1) throw new XtreamError('Kullanıcı adı veya şifre hatalı.', 'auth');
     const st = String(data.user_info.status || '').toLowerCase();

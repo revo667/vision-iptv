@@ -1016,3 +1016,5 @@ video::cue { background: rgba(10, 6, 20, 0.62); color: #fff; font-size: 1.05em; 
 
 /* Ekran klavyesi açıkken (alçak ekran) giriş logosu kartın üstüne binmesin */
 @media (max-height: 600px) { .login-brand { display: none; } .login { align-items: start; padding-top: 16px; overflow-y: auto; } }
+
+.login-error { white-space: pre-line; }

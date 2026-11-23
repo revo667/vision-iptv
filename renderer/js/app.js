@@ -14,6 +14,7 @@ const App = {
     Presence.init();
     Updates.init();
     window.__vzBack = () => this.back();
+    if (window.native?.version) $('#app-version').textContent = ` · v${window.native.version}`;
     this.bindLogin();
     this.bindNav();
     this.bindKeys();
@@ -45,6 +46,7 @@ const App = {
     $('#login').hidden = false;
     $('#login-submit').classList.toggle('loading', busy);
     Spatial.autoFocus($('#login'));
+    Updates.render();
   },
 
   fillLogin(acc) {
@@ -117,6 +119,7 @@ const App = {
   enterApp(info) {
     $('#login').hidden = true;
     $('#shell').hidden = false;
+    Updates.render();
     const u = info.user_info || {};
     this.updateAvatar();
     this.renderAccountMenu();

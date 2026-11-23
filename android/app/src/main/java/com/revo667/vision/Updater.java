@@ -19,8 +19,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 
 /** GitHub Releases üzerinden güncelleme: son sürümü denetle, APK'yı indir, paket yükleyiciyle kur. */
 final class Updater {
@@ -54,13 +52,14 @@ final class Updater {
         }
     }
 
-    private static HttpURLConnection get(String url) throws Exception {
-        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
-        c.setConnectTimeout(15000);
-        c.setReadTimeout(30000);
-        c.setRequestProperty("User-Agent", "Vision-Android/" + BuildConfig.VERSION_NAME);
-        c.setRequestProperty("Accept", "application/vnd.github+json");
-        return c;
+    // Uygulamanın ortak ağ katmanı (şifreli DNS yedekli) üzerinden istek
+    private static okhttp3.Response get(String url, String accept) throws Exception {
+        okhttp3.Request r = new okhttp3.Request.Builder()
+                .url(url)
+                .header("User-Agent", "Vision-Android/" + BuildConfig.VERSION_NAME)
+                .header("Accept", accept)
+                .build();
+        return Net.client().newCall(r).execute();
     }
 
     /** Arka planda denetle; sonuç "update" olayı olarak gönderilir. */
@@ -71,9 +70,11 @@ final class Updater {
                 out.put("type", "update");
                 out.put("manual", manual);
                 out.put("current", BuildConfig.VERSION_NAME);
-                HttpURLConnection c = get("https://api.github.com/repos/" + BuildConfig.UPDATE_REPO + "/releases/latest");
-                if (c.getResponseCode() != 200) throw new Exception("HTTP " + c.getResponseCode());
-                JSONObject rel = new JSONObject(readAll(c.getInputStream()));
+                JSONObject rel;
+                try (okhttp3.Response c = get("https://api.github.com/repos/" + BuildConfig.UPDATE_REPO + "/releases/latest", "application/vnd.github+json")) {
+                    if (c.code() != 200) throw new Exception("HTTP " + c.code());
+                    rel = new JSONObject(c.body().string());
+                }
                 String tag = rel.optString("tag_name", "");
                 JSONArray assets = rel.optJSONArray("assets");
                 JSONObject apk = null;
@@ -142,12 +143,13 @@ final class Updater {
         new Thread(() -> {
             File file = new File(act.getCacheDir(), "update.apk");
             try {
-                HttpURLConnection c = get(l.getString("url"));
-                c.setRequestProperty("Accept", "application/octet-stream");
-                c.setInstanceFollowRedirects(true);
-                if (c.getResponseCode() != 200) throw new Exception("İndirme hatası (HTTP " + c.getResponseCode() + ")");
-                long total = c.getContentLengthLong() > 0 ? c.getContentLengthLong() : l.optLong("size");
-                try (InputStream in = c.getInputStream(); OutputStream out = new FileOutputStream(file)) {
+                okhttp3.Response c = get(l.getString("url"), "application/octet-stream");
+                if (c.code() != 200) {
+                    c.close();
+                    throw new Exception("İndirme hatası (HTTP " + c.code() + ")");
+                }
+                long total = c.body().contentLength() > 0 ? c.body().contentLength() : l.optLong("size");
+                try (okhttp3.Response cc = c; InputStream in = cc.body().byteStream(); OutputStream out = new FileOutputStream(file)) {
                     byte[] buf = new byte[64 * 1024];
                     long done = 0;
                     int lastPct = -1;

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- IPTV sunucuları çoğunlukla http: düz metin trafiğe izin ver.
+     Eski Android sürümleri (7.0) Let's Encrypt köklerini tanımaz: uygulamayla birlikte gelsin. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="@raw/isrg_root_x1" />
+            <certificates src="@raw/isrg_root_x2" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
